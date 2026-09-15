@@ -1,0 +1,27 @@
+# Defaults
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+
+# Visual Studio, IDE
+.vs/
+.vsconfig
+*.sln
+*.slnx
+*.suo
+*.db
+*.opensdf
+*.sdf
+
+# No Git LFS
+Content/
+Art/
+*.uasset
+*.umap
+
+# etc.
+.claude/
+.codex/
+.mcp.json
