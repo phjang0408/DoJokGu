@@ -12,6 +12,7 @@ public class DoJokgu : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"AnimGraphRuntime",
 			"InputCore",
 			"EnhancedInput",
 			"AIModule",

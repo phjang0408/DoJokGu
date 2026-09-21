@@ -369,7 +369,11 @@ void AJGCharacter::MulticastPlayKickMotion_Implementation(EJGKickMotion Motion)
 	{
 		if (UAnimMontage* Montage = CharacterData->GetMontageForMotion(Motion))
 		{
-			PlayAnimMontage(Montage);
+			// The server already launched the ball. Skip visual windup for confirmed hits.
+			// Sliding is requested before contact and must play its complete start/loop/recovery.
+			const FName StartSection = Motion != EJGKickMotion::Slide && Montage->IsValidSectionName(TEXT("Contact"))
+				? FName(TEXT("Contact")) : NAME_None;
+			PlayAnimMontage(Montage, 1.f, StartSection);
 		}
 	}
 
