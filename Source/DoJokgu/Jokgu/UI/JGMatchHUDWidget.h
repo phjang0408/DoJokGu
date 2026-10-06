@@ -10,9 +10,10 @@ class UButton;
 class AJGGameStateBase;
 class UJGAttackTouchWidget;
 class UJGVirtualJoystickWidget;
+class UJGSlideButtonWidget;
 
 /**
- *  Match HUD: score, phase / countdown, point reason, result + rematch, joystick and attack zone.
+ *  Match HUD: score, phase / countdown, point reason, result + rematch, joystick, slide button and attack zone.
  *  If the widget tree is empty (native class or empty WBP) a default placeholder layout is built in code.
  *  A WBP child can provide its own layout by naming widgets like the BindWidgetOptional properties below.
  */
@@ -44,6 +45,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category="HUD", meta=(BindWidgetOptional))
 	TObjectPtr<UJGVirtualJoystickWidget> Joystick;
+
+	/** Touch only, shown with the joystick. Must be above AttackZone in the widget order to receive its touches first */
+	UPROPERTY(BlueprintReadOnly, Category="HUD", meta=(BindWidgetOptional))
+	TObjectPtr<UJGSlideButtonWidget> SlideButton;
 
 	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

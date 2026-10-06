@@ -1,6 +1,7 @@
 #include "Jokgu/UI/JGMatchHUDWidget.h"
 #include "Jokgu/UI/JGAttackTouchWidget.h"
 #include "Jokgu/UI/JGVirtualJoystickWidget.h"
+#include "Jokgu/UI/JGSlideButtonWidget.h"
 #include "Jokgu/Core/JGGameStateBase.h"
 #include "Jokgu/Core/JGPlayerState.h"
 #include "Jokgu/Player/JGPlayerController.h"
@@ -52,6 +53,16 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 		JoystickSlot->SetSize(FVector2D(260.0f, 260.0f));
 	}
 
+	// bottom right, over the attack zone: slide button (added after AttackZone so it is hit tested first)
+	SlideButton = WidgetTree->ConstructWidget<UJGSlideButtonWidget>(UJGSlideButtonWidget::StaticClass(), TEXT("SlideButton"));
+	if (UCanvasPanelSlot* SlideSlot = RootCanvas->AddChildToCanvas(SlideButton))
+	{
+		SlideSlot->SetAnchors(FAnchors(1.0f, 1.0f));
+		SlideSlot->SetAlignment(FVector2D(1.0f, 1.0f));
+		SlideSlot->SetPosition(FVector2D(-60.0f, -60.0f));
+		SlideSlot->SetSize(FVector2D(170.0f, 170.0f));
+	}
+
 	auto MakeText = [this, RootCanvas](const TCHAR* Name, int32 FontSize, const FAnchors& Anchors, const FVector2D& Position)
 	{
 		UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
@@ -77,6 +88,9 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 	ScoreText = MakeText(TEXT("ScoreText"), 40, FAnchors(0.5f, 0.0f), FVector2D(0.0f, 20.0f));
 	PhaseText = MakeText(TEXT("PhaseText"), 24, FAnchors(0.5f, 0.0f), FVector2D(0.0f, 80.0f));
 	MessageText = MakeText(TEXT("MessageText"), 36, FAnchors(0.5f, 0.35f), FVector2D::ZeroVector);
+
+	UTextBlock* SlideLabel = MakeText(TEXT("SlideLabel"), 22, FAnchors(1.0f, 1.0f), FVector2D(-145.0f, -160.0f));
+	SlideLabel->SetText(FText::FromString(TEXT("SLIDE")));
 
 	RematchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RematchButton"));
 	UTextBlock* ButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RematchLabel"));
@@ -248,9 +262,21 @@ void UJGMatchHUDWidget::SetTouchControlsVisible(bool bVisible)
 {
 	bTouchControlsVisible = bVisible;
 
+	const ESlateVisibility TouchVisibility = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+
 	if (Joystick)
 	{
-		Joystick->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		Joystick->SetVisibility(TouchVisibility);
+	}
+
+	if (SlideButton)
+	{
+		SlideButton->SetVisibility(TouchVisibility);
+	}
+
+	if (UWidget* SlideLabel = WidgetTree ? WidgetTree->FindWidget(TEXT("SlideLabel")) : nullptr)
+	{
+		SlideLabel->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }
 

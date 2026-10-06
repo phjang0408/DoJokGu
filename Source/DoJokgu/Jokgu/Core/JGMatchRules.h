@@ -41,6 +41,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Jokgu|Rules")
 	static void ClearRally(UPARAM(ref) FJGRallyState& State);
 
+	/**
+	 *  Records the first crossing of the net plane (court local X = 0) toward the receiver court between two ball
+	 *  samples in court local space. Returns true when this call recorded the crossing.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Jokgu|Rules")
+	static bool RegisterNetCrossing(UPARAM(ref) FJGRallyState& State, const FVector& PreviousCourtLocal, const FVector& CurrentCourtLocal, float NetHeight, float BallRadius);
+
 	/** Evaluates a ground contact and updates the bounce info in place */
 	UFUNCTION(BlueprintCallable, Category="Jokgu|Rules")
 	static FJGContactResult EvaluateGroundContact(UPARAM(ref) FJGRallyState& State, EJGCourtZone Zone);

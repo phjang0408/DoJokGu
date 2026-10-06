@@ -1,4 +1,5 @@
 #include "Jokgu/Gameplay/JGBall.h"
+#include "DoJokgu.h"
 #include "Jokgu/Core/JGDebug.h"
 #include "Jokgu/Core/JGMatchRules.h"
 #include "Jokgu/Data/JGBalanceData.h"
@@ -108,6 +109,15 @@ void AJGBall::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	if (HasAuthority())
+	{
+		UpdateNetCrossing();
+	}
+	else
+	{
+		UpdateVisualSmoothing(DeltaSeconds);
+	}
+
 	UpdateShadow();
 
 	if (HasAuthority() && bInPlay && !bOutOfPlayReported)
@@ -134,6 +144,95 @@ void AJGBall::PostNetReceiveVelocity(const FVector& NewVelocity)
 	Movement->Velocity = NewVelocity;
 }
 
+void AJGBall::PostNetReceiveLocationAndRotation()
+{
+	const FVector OldVisualLocation = VisualMesh->GetComponentLocation();
+
+	Super::PostNetReceiveLocationAndRotation();
+
+	if (bSnapNextNetUpdate)
+	{
+		bSnapNextNetUpdate = false;
+		SnapVisual();
+		return;
+	}
+
+	// keep the visual where it was and let UpdateVisualSmoothing pull it onto the corrected location
+	const FVector Offset = OldVisualLocation - GetActorLocation();
+	if (Offset.Size() > VisualSnapDistance)
+	{
+		SnapVisual();
+		return;
+	}
+
+	VisualMesh->SetRelativeLocation(GetActorTransform().InverseTransformVectorNoScale(Offset));
+}
+
+void AJGBall::UpdateVisualSmoothing(float DeltaSeconds)
+{
+	const FVector Offset = VisualMesh->GetRelativeLocation();
+	if (Offset.IsNearlyZero(0.01))
+	{
+		return;
+	}
+
+	const float Keep = VisualSmoothingTime > UE_KINDA_SMALL_NUMBER ? FMath::Exp(-DeltaSeconds / VisualSmoothingTime) : 0.0f;
+	VisualMesh->SetRelativeLocation(Offset * Keep);
+}
+
+void AJGBall::SnapVisual()
+{
+	VisualMesh->SetRelativeLocation(FVector::ZeroVector);
+}
+
+void AJGBall::OnRep_RallyState()
+{
+	// a new shot or a reset: drop the old correction so the previous trajectory does not drag the new one
+	if (RallyState.ShotId != LastSeenShotId)
+	{
+		LastSeenShotId = RallyState.ShotId;
+		bSnapNextNetUpdate = true;
+		SnapVisual();
+	}
+}
+
+void AJGBall::SetCourtFrame(const FTransform& InCourtFrame)
+{
+	CourtFrame = InCourtFrame;
+	bHasCourtFrame = true;
+	PreviousCourtLocal = CourtFrame.InverseTransformPosition(GetActorLocation());
+}
+
+void AJGBall::UpdateNetCrossing()
+{
+	if (!bHasCourtFrame)
+	{
+		return;
+	}
+
+	const FVector CurrentCourtLocal = CourtFrame.InverseTransformPosition(GetActorLocation());
+
+	if (bInPlay)
+	{
+		const UJGBalanceData* Balance = UJGBalanceData::Get();
+		if (UJGMatchRules::RegisterNetCrossing(RallyState, PreviousCourtLocal, CurrentCourtLocal, Balance->NetHeight, Balance->BallRadius))
+		{
+			UE_LOG(LogDoJokgu, Verbose, TEXT("Shot %d crossed the net: clearance %.1f cm, lateral %.1f cm"),
+				RallyState.ShotId, RallyState.NetCrossingClearance, RallyState.NetCrossingLateral);
+
+#if ENABLE_DRAW_DEBUG
+			if (CVarJGDrawDebug.GetValueOnGameThread())
+			{
+				const FColor Color = RallyState.NetCrossingClearance >= 0.0f ? FColor::Green : FColor::Red;
+				DrawDebugSphere(GetWorld(), GetActorLocation(), 12.0f, 8, Color, false, 3.0f);
+			}
+#endif
+		}
+	}
+
+	PreviousCourtLocal = CurrentCourtLocal;
+}
+
 void AJGBall::HoldAt(const FVector& Location)
 {
 	check(HasAuthority());
@@ -144,6 +243,11 @@ void AJGBall::HoldAt(const FVector& Location)
 
 	SetMovementActive(false);
 	SetActorLocation(Location, false, nullptr, ETeleportType::ResetPhysics);
+
+	if (bHasCourtFrame)
+	{
+		PreviousCourtLocal = CourtFrame.InverseTransformPosition(Location);
+	}
 	ForceNetUpdate();
 }
 
@@ -203,6 +307,8 @@ void AJGBall::SetMovementActive(bool bActive)
 void AJGBall::OnRep_InPlay()
 {
 	SetMovementActive(bInPlay);
+	bSnapNextNetUpdate = true;
+	SnapVisual();
 }
 
 void AJGBall::HandleBounce(const FHitResult& ImpactResult, const FVector& ImpactVelocity)
@@ -250,7 +356,8 @@ void AJGBall::HandleStop(const FHitResult& ImpactResult)
 void AJGBall::UpdateShadow()
 {
 	const UWorld* World = GetWorld();
-	const FVector Start = GetActorLocation();
+	// follow the smoothed visual, not the corrected collision
+	const FVector Start = VisualMesh->GetComponentLocation();
 	const FVector End = Start - FVector(0.0, 0.0, 5000.0);
 
 	FHitResult Hit;

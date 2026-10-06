@@ -167,6 +167,11 @@ void AJGGameModeBase::EnsureCourtAndBall()
 		}
 	}
 
+	if (Ball && Court)
+	{
+		Ball->SetCourtFrame(Court->GetActorTransform());
+	}
+
 	if (AJGGameStateBase* JGGameState = GetJGGameState())
 	{
 		JGGameState->SetCourtAndBall(Court, Ball);
@@ -584,6 +589,18 @@ void AJGGameModeBase::ApplyContactResult(const FJGContactResult& Result)
 		return;
 	}
 
+	// net crossing of the deciding shot, to diagnose net faults against the landing judgement
+	FString NetInfo = TEXT("net not crossed");
+	if (Ball && Ball->GetRallyState().bCrossedNet)
+	{
+		const FJGRallyState& Rally = Ball->GetRallyState();
+		NetInfo = FString::Printf(TEXT("net clearance %.0f cm, lateral %.0f cm"), Rally.NetCrossingClearance, Rally.NetCrossingLateral);
+	}
+
+	UE_LOG(LogDoJokgu, Log, TEXT("Point %s (%s), shot %d, %s"),
+		*UEnum::GetDisplayValueAsText(Result.ScoringTeam).ToString(), *UEnum::GetDisplayValueAsText(Result.Reason).ToString(),
+		Ball ? Ball->GetRallyState().ShotId : 0, *NetInfo);
+
 	if (bPracticeMode)
 	{
 		if (Ball)
@@ -591,8 +608,8 @@ void AJGGameModeBase::ApplyContactResult(const FJGContactResult& Result)
 			Ball->ClearRally();
 		}
 
-		const FString Message = FString::Printf(TEXT("[Practice] Point %s - %s"),
-			*UEnum::GetDisplayValueAsText(Result.ScoringTeam).ToString(), *UEnum::GetDisplayValueAsText(Result.Reason).ToString());
+		const FString Message = FString::Printf(TEXT("[Practice] Point %s - %s (%s)"),
+			*UEnum::GetDisplayValueAsText(Result.ScoringTeam).ToString(), *UEnum::GetDisplayValueAsText(Result.Reason).ToString(), *NetInfo);
 
 		UE_LOG(LogDoJokgu, Log, TEXT("%s"), *Message);
 

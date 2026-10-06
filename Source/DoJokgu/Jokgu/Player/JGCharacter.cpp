@@ -1,4 +1,5 @@
 #include "Jokgu/Player/JGCharacter.h"
+#include "Jokgu/Player/JGCharacterMovementComponent.h"
 #include "Jokgu/Core/JGDebug.h"
 #include "Jokgu/Core/JGGameModeBase.h"
 #include "Jokgu/Core/JGGameStateBase.h"
@@ -27,7 +28,8 @@ namespace
 	constexpr int32 DefaultStat = 3;
 }
 
-AJGCharacter::AJGCharacter()
+AJGCharacter::AJGCharacter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJGCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -179,7 +181,7 @@ bool AJGCharacter::CanMoveNow() const
 		return true;
 	}
 
-	// prototype: gated on the owning client only, the server does not enforce it yet
+	// also enforced by the server through UJGCharacterMovementComponent
 	switch (JGGameState->GetPhase())
 	{
 	case EJGMatchPhase::MatchEnd:

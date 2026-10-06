@@ -57,7 +57,7 @@ protected:
 
 public:
 
-	AJGCharacter();
+	AJGCharacter(const FObjectInitializer& ObjectInitializer);
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -99,6 +99,9 @@ public:
 
 	/** Server: clears buffered input, slide state and hit cooldown for a new point */
 	void ResetForNewPoint();
+
+	/** Movement rule shared by the owning client and the server (see UJGCharacterMovementComponent) */
+	bool CanMoveNow() const;
 
 protected:
 
@@ -148,7 +151,6 @@ protected:
 	void EndSlideRecovery();
 	void CancelSlide();
 
-	bool CanMoveNow() const;
 	void UpdateMatchCamera(float DeltaSeconds);
 	void DrawAimPreview() const;
 	void DrawDebugReach() const;

@@ -142,6 +142,19 @@ struct FJGRallyState
 	/** Incremented on every legal hit */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rally")
 	int32 ShotId = 0;
+
+	/** Set once per shot when the ball center crosses the net plane toward the receiver court. Diagnostic only:
+	 *  the landing zone still decides the point, because a receiver may legally hit the ball before it crosses. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rally")
+	bool bCrossedNet = false;
+
+	/** Gap between the bottom of the ball and the net top at the crossing. Negative means the ball touched the net. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rally")
+	float NetCrossingClearance = 0.0f;
+
+	/** Court local Y of the ball at the crossing. Beyond the half width the ball passed beside the court. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Rally")
+	float NetCrossingLateral = 0.0f;
 };
 
 /** Result of evaluating a ground contact or a stopped ball */

@@ -112,6 +112,50 @@ bool FJGRulesGroundContactTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJGRulesNetCrossingTest, "Jokgu.Rules.NetCrossing",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FJGRulesNetCrossingTest::RunTest(const FString& Parameters)
+{
+	const float NetHeight = 105.0f;
+	const float BallRadius = 13.0f;
+
+	// A attacks toward +X: the crossing point is interpolated on the net plane
+	{
+		FJGRallyState State;
+		UJGMatchRules::RegisterHit(State, EJGTeam::A);
+		TestFalse(TEXT("no crossing on own side"), UJGMatchRules::RegisterNetCrossing(State, FVector(-50.0, 0.0, 150.0), FVector(-10.0, 0.0, 160.0), NetHeight, BallRadius));
+		TestTrue(TEXT("crossing recorded"), UJGMatchRules::RegisterNetCrossing(State, FVector(-10.0, 20.0, 160.0), FVector(30.0, 60.0, 200.0), NetHeight, BallRadius));
+		TestTrue(TEXT("crossed flag"), State.bCrossedNet);
+		TestTrue(TEXT("clearance at the plane"), FMath::IsNearlyEqual(State.NetCrossingClearance, 170.0f - BallRadius - NetHeight, 0.01f));
+		TestTrue(TEXT("lateral at the plane"), FMath::IsNearlyEqual(State.NetCrossingLateral, 30.0f, 0.01f));
+		TestFalse(TEXT("recorded once per shot"), UJGMatchRules::RegisterNetCrossing(State, FVector(-10.0, 0.0, 160.0), FVector(30.0, 0.0, 200.0), NetHeight, BallRadius));
+	}
+
+	// B attacks toward -X; moving back toward its own court is not a crossing
+	{
+		FJGRallyState State;
+		UJGMatchRules::RegisterHit(State, EJGTeam::B);
+		TestFalse(TEXT("wrong direction"), UJGMatchRules::RegisterNetCrossing(State, FVector(-10.0, 0.0, 100.0), FVector(10.0, 0.0, 100.0), NetHeight, BallRadius));
+		TestTrue(TEXT("B crossing"), UJGMatchRules::RegisterNetCrossing(State, FVector(10.0, 0.0, 110.0), FVector(-10.0, 0.0, 110.0), NetHeight, BallRadius));
+		TestTrue(TEXT("touching the net gives negative clearance"), State.NetCrossingClearance < 0.0f);
+	}
+
+	// a new hit resets the record, a cleared rally records nothing
+	{
+		FJGRallyState State;
+		UJGMatchRules::RegisterHit(State, EJGTeam::A);
+		UJGMatchRules::RegisterNetCrossing(State, FVector(-10.0, 0.0, 200.0), FVector(10.0, 0.0, 200.0), NetHeight, BallRadius);
+		UJGMatchRules::RegisterHit(State, EJGTeam::B);
+		TestFalse(TEXT("reset on new hit"), State.bCrossedNet);
+
+		UJGMatchRules::ClearRally(State);
+		TestFalse(TEXT("cleared: nothing recorded"), UJGMatchRules::RegisterNetCrossing(State, FVector(10.0, 0.0, 200.0), FVector(-10.0, 0.0, 200.0), NetHeight, BallRadius));
+	}
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJGShotCalculatorTest, "Jokgu.Shot.Calculator",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

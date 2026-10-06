@@ -43,7 +43,36 @@ void UJGMatchRules::RegisterHit(FJGRallyState& State, EJGTeam HitterTeam)
 	State.ExpectedReceiverTeam = GetOpposingTeam(HitterTeam);
 	State.ReceiverBounceCount = 0;
 	State.bHasLandedInReceiverCourt = false;
+	State.bCrossedNet = false;
+	State.NetCrossingClearance = 0.0f;
+	State.NetCrossingLateral = 0.0f;
 	++State.ShotId;
+}
+
+bool UJGMatchRules::RegisterNetCrossing(FJGRallyState& State, const FVector& PreviousCourtLocal, const FVector& CurrentCourtLocal, float NetHeight, float BallRadius)
+{
+	if (State.bCrossedNet || State.LastHitterTeam == EJGTeam::None)
+	{
+		return false;
+	}
+
+	// receiver court A is local -X, B is +X
+	const double ReceiverSign = State.ExpectedReceiverTeam == EJGTeam::A ? -1.0 : 1.0;
+	const double Previous = PreviousCourtLocal.X * ReceiverSign;
+	const double Current = CurrentCourtLocal.X * ReceiverSign;
+
+	if (Previous > 0.0 || Current <= 0.0)
+	{
+		return false;
+	}
+
+	const double Alpha = Previous / (Previous - Current);
+	const FVector Crossing = FMath::Lerp(PreviousCourtLocal, CurrentCourtLocal, Alpha);
+
+	State.bCrossedNet = true;
+	State.NetCrossingClearance = static_cast<float>(Crossing.Z - BallRadius - NetHeight);
+	State.NetCrossingLateral = static_cast<float>(Crossing.Y);
+	return true;
 }
 
 void UJGMatchRules::ClearRally(FJGRallyState& State)
