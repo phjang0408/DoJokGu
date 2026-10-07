@@ -234,14 +234,14 @@ public:
 	// ----- Camera -----
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Camera", meta=(ClampMin=-89, ClampMax=0, Units="deg"))
-	float CameraPitch = -60.0f;
+	float CameraPitch = -42.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Camera", meta=(ClampMin=100, Units="cm"))
-	float CameraDistance = 1800.0f;
+	float CameraDistance = 2600.0f;
 
 	/** Camera focus point distance from the net, on the player's own side */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Camera", meta=(Units="cm"))
-	float CameraFocusDistanceFromNet = 150.0f;
+	float CameraFocusDistanceFromNet = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Camera", meta=(ClampMin=5, ClampMax=170, Units="deg"))
 	float CameraFieldOfView = 70.0f;
