@@ -119,6 +119,11 @@ void AJGCourt::ApplyDimensions()
 	ApplyColor(LineBackB, LineColor);
 	ApplyColor(LineCenter, LineColor);
 	ApplyColor(NetMesh, NetColor);
+
+	for (UStaticMeshComponent* Mesh : { GroundMesh, CourtSurfaceMesh, LineSideLeft, LineSideRight, LineBackA, LineBackB, LineCenter, NetMesh })
+	{
+		Mesh->SetVisibility(bShowPlaceholderVisuals);
+	}
 }
 
 void AJGCourt::PlaceBox(UBoxComponent* Box, const FVector& LocalCenter, const FVector& HalfExtent) const

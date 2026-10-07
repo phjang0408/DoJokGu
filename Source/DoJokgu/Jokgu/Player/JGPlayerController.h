@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Match")
 	void RequestRematch();
 
+	/** Test command until the selection screen exists, e.g. "JGCharacter LeeMinji" */
+	UFUNCTION(Exec, BlueprintCallable, Category="Characters")
+	void JGCharacter(FName CharacterId);
+
 	UFUNCTION(BlueprintPure, Category="UI")
 	bool ShouldUseTouchControls() const;
 
@@ -54,4 +58,7 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestRematch();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSelectCharacter(FName CharacterId);
 };

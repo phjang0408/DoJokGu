@@ -44,9 +44,10 @@ void AJGGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* 
 			PlayerState->SetTeam(FindFreeTeam());
 		}
 
-		if (PlayerState->GetCharacterId().IsNone() && DefaultCharacterData)
+		const UJGCharacterData* StartingData = GetStartingCharacterData(PlayerState->GetTeam());
+		if (PlayerState->GetCharacterId().IsNone() && StartingData)
 		{
-			PlayerState->SetCharacterId(DefaultCharacterData->CharacterId);
+			PlayerState->SetCharacterId(StartingData->CharacterId);
 		}
 	}
 
@@ -544,6 +545,28 @@ void AJGGameModeBase::HandleRematchRequest(APlayerController* Requester)
 	}
 }
 
+void AJGGameModeBase::HandleCharacterSelect(APlayerController* Requester, FName CharacterId)
+{
+	AJGPlayerState* PlayerState = Requester ? Requester->GetPlayerState<AJGPlayerState>() : nullptr;
+	const bool bInRoster = CharacterRoster.ContainsByPredicate([CharacterId](const UJGCharacterData* Data)
+	{
+		return Data && Data->CharacterId == CharacterId;
+	});
+
+	if (!PlayerState || !bInRoster)
+	{
+		UE_LOG(LogDoJokgu, Warning, TEXT("Character select ignored: %s is not in the roster"), *CharacterId.ToString());
+		return;
+	}
+
+	PlayerState->SetCharacterId(CharacterId);
+
+	if (AJGCharacter* Character = Cast<AJGCharacter>(Requester->GetPawn()))
+	{
+		Character->SetCharacterData(FindCharacterData(CharacterId));
+	}
+}
+
 void AJGGameModeBase::HandleBallGroundContact(AJGBall* InBall, const FVector& Location)
 {
 	const AJGGameStateBase* JGGameState = GetJGGameState();
@@ -722,6 +745,12 @@ UJGCharacterData* AJGGameModeBase::FindCharacterData(FName CharacterId) const
 	}
 
 	return DefaultCharacterData;
+}
+
+UJGCharacterData* AJGGameModeBase::GetStartingCharacterData(EJGTeam Team) const
+{
+	const int32 Index = Team == EJGTeam::B ? 1 : 0;
+	return CharacterRoster.IsValidIndex(Index) && CharacterRoster[Index] ? CharacterRoster[Index].Get() : DefaultCharacterData.Get();
 }
 
 int32 AJGGameModeBase::GetRequiredPlayers() const

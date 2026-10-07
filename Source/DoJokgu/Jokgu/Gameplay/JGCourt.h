@@ -79,6 +79,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Court", meta=(ClampMin=0, Units="cm"))
 	float PlayerBlockerHeight = 400.0f;
 
+	/** Off when the level supplies its own court art (e.g. the campus map). Collision and judgement are unchanged. */
+	UPROPERTY(EditAnywhere, Category="Court|Visual")
+	bool bShowPlaceholderVisuals = true;
+
 	/** Base material with a "Color" vector parameter (defaults to the engine BasicShapeMaterial) */
 	UPROPERTY(EditAnywhere, Category="Court|Visual")
 	TObjectPtr<UMaterialInterface> PlaceholderMaterial;

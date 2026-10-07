@@ -85,3 +85,16 @@ void AJGPlayerController::ServerRequestRematch_Implementation()
 		GameMode->HandleRematchRequest(this);
 	}
 }
+
+void AJGPlayerController::JGCharacter(FName CharacterId)
+{
+	ServerSelectCharacter(CharacterId);
+}
+
+void AJGPlayerController::ServerSelectCharacter_Implementation(FName CharacterId)
+{
+	if (AJGGameModeBase* GameMode = GetWorld()->GetAuthGameMode<AJGGameModeBase>())
+	{
+		GameMode->HandleCharacterSelect(this, CharacterId);
+	}
+}

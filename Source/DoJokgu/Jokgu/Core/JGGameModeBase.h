@@ -43,6 +43,9 @@ public:
 	/** Collects rematch votes on the result screen */
 	void HandleRematchRequest(APlayerController* Requester);
 
+	/** Switches a player to a roster character. Ignored for ids that are not in the roster. */
+	void HandleCharacterSelect(APlayerController* Requester, FName CharacterId);
+
 	/** Resets scores and starts from the first serve */
 	UFUNCTION(BlueprintCallable, Category="Match")
 	void StartNewMatch();
@@ -67,6 +70,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Characters")
 	TObjectPtr<UJGCharacterData> DefaultCharacterData;
 
+	/** Selectable characters. Until a selection screen exists, team A starts as entry 0 and team B as entry 1. */
 	UPROPERTY(EditDefaultsOnly, Category="Characters")
 	TArray<TObjectPtr<UJGCharacterData>> CharacterRoster;
 
@@ -103,6 +107,7 @@ protected:
 	bool HasPlayerOnTeam(EJGTeam Team) const;
 	AJGCharacter* FindCharacterOnTeam(EJGTeam Team) const;
 	UJGCharacterData* FindCharacterData(FName CharacterId) const;
+	UJGCharacterData* GetStartingCharacterData(EJGTeam Team) const;
 	int32 GetRequiredPlayers() const;
 
 	AJGGameStateBase* GetJGGameState() const;
