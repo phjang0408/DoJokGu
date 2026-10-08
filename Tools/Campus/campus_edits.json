@@ -2,6 +2,15 @@
   "delete": {},
   "transform": [],
   "add": [],
+  "materials": [
+    {
+      "bases": [
+        "SM_ENC_ConnectedTerrain"
+      ],
+      "material": "/Game/Jokgu/Environment/Materials/M_JG_TerrainVertexColor",
+      "vertex_color_roughness": 0.95
+    }
+  ],
   "collision": {
     "site_cm": [
       -3135,

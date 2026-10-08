@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "warnings": [],
+  "before": {
+    "actors": 1981,
+    "triangles": 1349427
+  },
+  "deleted": {},
+  "transformed": 0,
+  "added": 0,
+  "materials": 1,
+  "collision": {
+    "walk": 500,
+    "block": 159,
+    "meshes": 349
+  },
+  "after": {
+    "actors": 1981,
+    "triangles": 1349427
+  }
+}

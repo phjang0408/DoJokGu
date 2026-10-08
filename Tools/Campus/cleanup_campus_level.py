@@ -5,6 +5,8 @@ Actors are found by label (GLB node name with "." -> "_"). Edits:
 - delete: labels to remove, grouped by reason
 - transform: per label, optional location [x, y, z] cm, yaw deg, uniform scale
 - add: new StaticMeshActors {label, mesh, location, yaw, scale}
+- materials: material overrides by mesh base name; a missing vertex-color material is created
+  (the terrain's height tint is GLB vertex colour, which the imported material ignores)
 - collision: mesh base names (label == base or base_<n>) for walkable floors and blockers inside the wall. Pawns collide; the
   JGBall channel and the camera channel are ignored so the ball and match camera are unaffected.
 Writes Tools/Campus/Reports/cleanup_report.json.
@@ -20,7 +22,7 @@ REPORT = TOOLS / "Reports/cleanup_report.json"
 LEVEL = "/Game/Jokgu/Maps/L_CampusEnclosed"
 ACTORS = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 EAL = unreal.EditorAssetLibrary
-BALL_CHANNEL = unreal.CollisionChannel.ECC_GAME_TRACE_CHANNEL1  # "JGBall" in DefaultEngine.ini
+BALL_CHANNEL = unreal.CollisionChannel.ECC_JG_BALL  # GameTraceChannel1, named "JGBall" in DefaultEngine.ini
 RESULT = {"success": False, "warnings": []}
 
 
@@ -106,6 +108,52 @@ def apply_adds(edits, actors):
     RESULT["added"] = done
 
 
+def matches(name, bases):
+    return any(name == base or name.startswith(base + "_") for base in bases)
+
+
+def ensure_vertex_color_material(path, roughness):
+    if EAL.does_asset_exist(path):
+        material = EAL.load_asset(path)
+        if not material.get_editor_property("used_with_nanite"):  # assets made before this flag was set
+            material.set_editor_property("used_with_nanite", True)
+            unreal.MaterialEditingLibrary.recompile_material(material)
+            require(EAL.save_loaded_asset(material, False), "Could not save " + path)
+        return material
+    folder, name = path.rsplit("/", 1)
+    material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+        name, folder, unreal.Material, unreal.MaterialFactoryNew())
+    require(material, "Could not create " + path)
+    # the imported background meshes are Nanite; without this flag cooked builds fall back to the default material
+    material.set_editor_property("used_with_nanite", True)
+    mel = unreal.MaterialEditingLibrary
+    color = mel.create_material_expression(material, unreal.MaterialExpressionVertexColor, -400, 0)
+    mel.connect_material_property(color, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = mel.create_material_expression(material, unreal.MaterialExpressionConstant, -400, 250)
+    rough.set_editor_property("r", roughness)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.recompile_material(material)
+    require(EAL.save_loaded_asset(material, False), "Could not save " + path)
+    return material
+
+
+def apply_materials(edits, actors):
+    done = 0
+    for rule in edits.get("materials", []):
+        if "vertex_color_roughness" in rule:
+            material = ensure_vertex_color_material(rule["material"], rule["vertex_color_roughness"])
+        else:
+            material = EAL.load_asset(rule["material"])
+        require(material, "Missing material " + rule["material"])
+        for name, actor in actors.items():
+            if isinstance(actor, unreal.StaticMeshActor) and matches(name, rule["bases"]):
+                component = actor.static_mesh_component
+                for slot in range(component.get_num_materials()):
+                    component.set_material(slot, material)
+                done += 1
+    RESULT["materials"] = done
+
+
 def inside(actor, site):
     location = actor.get_actor_location()
     return site[0] <= location.x <= site[1] and site[2] <= location.y <= site[3]
@@ -136,7 +184,7 @@ def apply_collision(edits, actors):
         if not isinstance(actor, unreal.StaticMeshActor):
             continue
         for kind in ("walk", "block"):
-            if any(name == base or name.startswith(base + "_") for base in rules.get(kind, [])):
+            if matches(name, rules.get(kind, [])):
                 # floors may extend past the wall (terrain, plazas); blockers only matter inside it
                 if kind == "walk" or inside(actor, site):
                     make_collidable(actor, kind == "walk", meshes)
@@ -156,6 +204,7 @@ def main():
     apply_deletes(edits, actors)
     apply_transforms(edits, actors)
     apply_adds(edits, actors)
+    apply_materials(edits, actors)
     apply_collision(edits, actors)
     RESULT["after"] = background_stats()
     require(current_world().get_path_name().startswith(LEVEL), "Editor world changed during cleanup")
