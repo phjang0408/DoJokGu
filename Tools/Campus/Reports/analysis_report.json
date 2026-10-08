@@ -1,0 +1,634 @@
+{
+ "source": "D:/01_Github/DoJokgu/Art/Schoolyard/CampusEnclosed/Exports/DJG_CampusEnclosed.glb",
+ "seconds": 156.9,
+ "objects": 1981,
+ "triangles": 3168679,
+ "viewpoints": 472,
+ "grid_cells_skipped_as_roof": 47,
+ "never_tested_large_or_kept": 42,
+ "invisible_count": 53,
+ "invisible_triangles": 25852,
+ "triangles_after_invisible_removal": 3142827,
+ "invisible_by_mesh": {
+  "SM_ENC_Forest0_ExportMesh": [
+   19,
+   6232
+  ],
+  "TXT_ENC_Gate_SchoolName_ExportMesh": [
+   1,
+   3628
+  ],
+  "SM_ENC_Forest2_ExportMesh": [
+   11,
+   3608
+  ],
+  "SM_ENC_Forest1_ExportMesh": [
+   9,
+   2952
+  ],
+  "SM_ENC_Tree0_ExportMesh": [
+   2,
+   2736
+  ],
+  "SM_C360_RiverRailing3m_ExportMesh": [
+   5,
+   2200
+  ],
+  "SM_C360_RiverRailing3m_ExportMesh.001": [
+   4,
+   1760
+  ],
+  "SM_ENC_Tree1_ExportMesh": [
+   1,
+   1368
+  ],
+  "SM_ENC_Tree2_ExportMesh": [
+   1,
+   1368
+  ]
+ },
+ "close_tree_pairs": [
+  {
+   "distance_m": 0.1,
+   "keep": "SM_C360_CherryTree_047",
+   "remove": "SM_C360_CherryTree_056",
+   "remove_location_cm": [
+    -2904,
+    5337,
+    -3
+   ]
+  },
+  {
+   "distance_m": 2.11,
+   "keep": "SM_C360_CherryTree_052",
+   "remove": "SM_C360_CherryTree_053",
+   "remove_location_cm": [
+    2913,
+    -3397,
+    -3
+   ]
+  },
+  {
+   "distance_m": 1.09,
+   "keep": "SM_C360_CherryTree_065",
+   "remove": "SM_ENC_Tree0_017",
+   "remove_location_cm": [
+    -7502,
+    -7399,
+    -17
+   ]
+  },
+  {
+   "distance_m": 2.34,
+   "keep": "SM_DJG_Tree_C_012",
+   "remove": "SM_ENC_Tree1",
+   "remove_location_cm": [
+    -903,
+    -3002,
+    -9
+   ]
+  },
+  {
+   "distance_m": 1.0,
+   "keep": "SM_ENC_Tree0_016",
+   "remove": "SM_ENC_Tree0_022",
+   "remove_location_cm": [
+    10998,
+    -9399,
+    -17
+   ]
+  }
+ ],
+ "invisible": [
+  {
+   "label": "SM_C360_RiverRailing3m_216",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh",
+   "triangles": 440,
+   "location_cm": [
+    -5080,
+    -10800,
+    58
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_217",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh",
+   "triangles": 440,
+   "location_cm": [
+    -5080,
+    -10500,
+    58
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_218",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh",
+   "triangles": 440,
+   "location_cm": [
+    -5080,
+    -10200,
+    58
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_284",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh",
+   "triangles": 440,
+   "location_cm": [
+    -5080,
+    10500,
+    58
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_285",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh",
+   "triangles": 440,
+   "location_cm": [
+    -5080,
+    10800,
+    58
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_286",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh.001",
+   "triangles": 440,
+   "location_cm": [
+    -7420,
+    -10900,
+    68
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_287",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh.001",
+   "triangles": 440,
+   "location_cm": [
+    -7420,
+    -10600,
+    68
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_354",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh.001",
+   "triangles": 440,
+   "location_cm": [
+    -7420,
+    10400,
+    68
+   ]
+  },
+  {
+   "label": "SM_C360_RiverRailing3m_355",
+   "mesh": "SM_C360_RiverRailing3m_ExportMesh.001",
+   "triangles": 440,
+   "location_cm": [
+    -7420,
+    10700,
+    68
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_004",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12683,
+    9668,
+    1655
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_037",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    -7658,
+    -13826,
+    3368
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_052",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13809,
+    -10247,
+    1456
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_064",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13050,
+    -10287,
+    1231
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_071",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13590,
+    -14262,
+    2713
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_077",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13960,
+    13827,
+    3073
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_095",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13235,
+    -8680,
+    1383
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_124",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12760,
+    -7176,
+    1134
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_126",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13597,
+    -6385,
+    1422
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_176",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    -9602,
+    3837,
+    1502
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_185",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13679,
+    -10731,
+    1635
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_196",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12246,
+    -6862,
+    1236
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_229",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14238,
+    11304,
+    2177
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_233",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12380,
+    -6980,
+    1053
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_278",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13728,
+    -7825,
+    1262
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_284",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14124,
+    8590,
+    2479
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_312",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14899,
+    -5431,
+    2526
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_325",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    11985,
+    9521,
+    1229
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest0_327",
+   "mesh": "SM_ENC_Forest0_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14666,
+    -9997,
+    1653
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_068",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14189,
+    4315,
+    2659
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_094",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    -14227,
+    4903,
+    3894
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_105",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14339,
+    -5044,
+    2536
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_133",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13263,
+    6145,
+    1949
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_230",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14197,
+    -7252,
+    1433
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_245",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    11970,
+    -9816,
+    1125
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_246",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14745,
+    -12771,
+    2019
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_248",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14918,
+    -7187,
+    1553
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest1_289",
+   "mesh": "SM_ENC_Forest1_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14133,
+    -11218,
+    1844
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_052",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    11970,
+    -9642,
+    1111
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_067",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13951,
+    -6696,
+    1686
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_069",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12921,
+    12898,
+    1974
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_115",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12146,
+    -978,
+    1769
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_130",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    14470,
+    -11860,
+    1944
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_164",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    11871,
+    -6631,
+    1139
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_257",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13396,
+    -6767,
+    1362
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_258",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12107,
+    10296,
+    1133
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_262",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    11968,
+    -10380,
+    948
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_297",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    12062,
+    6425,
+    1194
+   ]
+  },
+  {
+   "label": "SM_ENC_Forest2_301",
+   "mesh": "SM_ENC_Forest2_ExportMesh",
+   "triangles": 328,
+   "location_cm": [
+    13884,
+    -9453,
+    1369
+   ]
+  },
+  {
+   "label": "SM_ENC_Tree0_016",
+   "mesh": "SM_ENC_Tree0_ExportMesh",
+   "triangles": 1368,
+   "location_cm": [
+    10998,
+    -9499,
+    401
+   ]
+  },
+  {
+   "label": "SM_ENC_Tree0_022",
+   "mesh": "SM_ENC_Tree0_ExportMesh",
+   "triangles": 1368,
+   "location_cm": [
+    10998,
+    -9399,
+    281
+   ]
+  },
+  {
+   "label": "SM_ENC_Tree1_020",
+   "mesh": "SM_ENC_Tree1_ExportMesh",
+   "triangles": 1368,
+   "location_cm": [
+    11301,
+    6196,
+    361
+   ]
+  },
+  {
+   "label": "SM_ENC_Tree2_020",
+   "mesh": "SM_ENC_Tree2_ExportMesh",
+   "triangles": 1368,
+   "location_cm": [
+    11303,
+    3793,
+    383
+   ]
+  },
+  {
+   "label": "TXT_ENC_Gate_SchoolName_001",
+   "mesh": "TXT_ENC_Gate_SchoolName_ExportMesh",
+   "triangles": 3628,
+   "location_cm": [
+    -3036,
+    0,
+    567
+   ]
+  }
+ ]
+}

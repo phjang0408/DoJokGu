@@ -1,0 +1,136 @@
+{
+  "engine": "5.8.2-56702186+++UE5+Release-5.8",
+  "success": true,
+  "warnings": [],
+  "exposure_bias": 0.0,
+  "court_visible_meshes": [],
+  "saved_assets": 619,
+  "imported_actors": 1982,
+  "net_extent_cm": [
+    1.7500000000001004,
+    450.0000109076501,
+    34.900001525878906
+  ],
+  "court_lines_extent_cm": [
+    599.9999905675652,
+    400.00000487267994,
+    0.699999988079071
+  ],
+  "court_art_fit": {
+    "CourtLines": {
+      "before_cm": [
+        1200.0,
+        800.0
+      ],
+      "after_cm": [
+        1200.0,
+        800.0,
+        2.0
+      ]
+    },
+    "NetMesh": {
+      "before_cm": [
+        3.5,
+        900.0
+      ],
+      "after_cm": [
+        3.5,
+        900.0,
+        105.0
+      ]
+    },
+    "NetPosts": {
+      "before_cm": [
+        20.6,
+        920.6
+      ],
+      "after_cm": [
+        20.6,
+        900.0,
+        105.0
+      ]
+    }
+  },
+  "art_ground_top_cm": 1.4,
+  "background_components": 1981,
+  "blender_x_axis": [
+    0.0,
+    1.0
+  ],
+  "blender_y_axis": [
+    1.0,
+    0.0
+  ],
+  "extras": [
+    {
+      "label": "Spectator_05",
+      "look": "05_BlondKicker",
+      "animation": "Clap",
+      "location_cm": [
+        -300,
+        -1160
+      ],
+      "yaw": 75.5
+    },
+    {
+      "label": "Spectator_07",
+      "look": "07_Headband",
+      "animation": "Confidence",
+      "location_cm": [
+        -120,
+        -1160
+      ],
+      "yaw": 84.1
+    },
+    {
+      "label": "Spectator_08",
+      "look": "08_BackwardCap",
+      "animation": "Taunt",
+      "location_cm": [
+        300,
+        -1160
+      ],
+      "yaw": 104.5
+    },
+    {
+      "label": "Spectator_09",
+      "look": "09_GreenGlasses",
+      "animation": "Clap",
+      "location_cm": [
+        -400,
+        1550
+      ],
+      "yaw": -75.5
+    },
+    {
+      "label": "Spectator_10",
+      "look": "10_RedBob",
+      "animation": "Victory",
+      "location_cm": [
+        450,
+        1550
+      ],
+      "yaw": -106.2
+    },
+    {
+      "label": "Cheerleader_12",
+      "look": "12_Cheerleader",
+      "animation": "Victory",
+      "location_cm": [
+        100,
+        -1040
+      ],
+      "yaw": 95.5
+    },
+    {
+      "label": "Referee_11",
+      "look": "11_Referee",
+      "animation": "Idle",
+      "location_cm": [
+        -120,
+        820
+      ],
+      "yaw": -81.7
+    }
+  ]
+}
