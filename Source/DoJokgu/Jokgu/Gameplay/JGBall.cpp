@@ -13,10 +13,13 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 
+#pragma region 초기화
+
 AJGBall::AJGBall()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// 공은 화면 어디서나 보여야 하므로 거리와 상관없이 자주 복제한다
 	bReplicates = true;
 	bAlwaysRelevant = true;
 	SetReplicatingMovement(true);
@@ -25,6 +28,7 @@ AJGBall::AJGBall()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 
+	// JGBall 채널로 쿼리만 하고, WorldStatic(코트 바닥·네트)만 막는다
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Collision->InitSphereRadius(13.0f);
 	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -40,6 +44,7 @@ AJGBall::AJGBall()
 	VisualMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	VisualMesh->SetCanEverAffectNavigation(false);
 
+	// 그림자는 월드 기준으로 직접 놓으므로 부모 트랜스폼을 따르지 않는다
 	ShadowMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShadowMesh"));
 	ShadowMesh->SetupAttachment(Collision);
 	ShadowMesh->SetStaticMesh(CylinderMesh.Object);
@@ -50,6 +55,7 @@ AJGBall::AJGBall()
 	ShadowMesh->SetUsingAbsoluteRotation(true);
 	ShadowMesh->SetUsingAbsoluteScale(true);
 
+	// 빠른 공이 얇은 네트를 뚫지 않도록 120Hz로 나눠 스윕한다
 	Movement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("Movement"));
 	Movement->SetUpdatedComponent(Collision);
 	Movement->bAutoActivate = false;
@@ -70,7 +76,7 @@ void AJGBall::BeginPlay()
 
 	ApplyBalance();
 
-	// engine basic shapes use BasicShapeMaterial, which exposes a "Color" parameter
+	// 엔진 기본 도형은 BasicShapeMaterial을 쓰고, 이 재질에 "Color" 파라미터가 있다
 	if (UMaterialInstanceDynamic* Material = VisualMesh->CreateDynamicMaterialInstance(0))
 	{
 		Material->SetVectorParameterValue(TEXT("Color"), BallColor);
@@ -90,6 +96,7 @@ void AJGBall::ApplyBalance()
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 
 	Collision->SetSphereRadius(Balance->BallRadius);
+	// 엔진 기본 구 메시는 지름 100cm
 	VisualMesh->SetRelativeScale3D(FVector(VisualRadius * 2.0f / 100.0f));
 
 	Movement->ProjectileGravityScale = Balance->BallGravityScale;
@@ -104,6 +111,10 @@ void AJGBall::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
 	DOREPLIFETIME(AJGBall, bInPlay);
 	DOREPLIFETIME(AJGBall, RallyState);
 }
+
+#pragma endregion
+
+#pragma region 틱
 
 void AJGBall::Tick(float DeltaSeconds)
 {
@@ -122,7 +133,7 @@ void AJGBall::Tick(float DeltaSeconds)
 
 	if (HasAuthority() && bInPlay && !bOutOfPlayReported)
 	{
-		// safety net: a ball that leaves the play area without touching the floor still ends the rally
+		// 안전장치: 바닥에 닿지 않고 경기 영역 밖으로 떨어진 공도 랠리를 끝낸다
 		if (GetActorLocation().Z < UJGBalanceData::Get()->OutOfPlayZ)
 		{
 			bOutOfPlayReported = true;
@@ -136,16 +147,21 @@ void AJGBall::Tick(float DeltaSeconds)
 	}
 }
 
+#pragma endregion
+
+#pragma region 클라이언트 보정과 표시 보간
+
 void AJGBall::PostNetReceiveVelocity(const FVector& NewVelocity)
 {
 	Super::PostNetReceiveVelocity(NewVelocity);
 
-	// keep client extrapolation in sync with the server velocity
+	// 클라이언트 외삽이 서버 속도와 어긋나지 않게 맞춘다
 	Movement->Velocity = NewVelocity;
 }
 
 void AJGBall::PostNetReceiveLocationAndRotation()
 {
+	// Super가 충돌체를 서버 위치로 옮기기 전에 지금 보이는 위치를 기억한다
 	const FVector OldVisualLocation = VisualMesh->GetComponentLocation();
 
 	Super::PostNetReceiveLocationAndRotation();
@@ -157,7 +173,7 @@ void AJGBall::PostNetReceiveLocationAndRotation()
 		return;
 	}
 
-	// keep the visual where it was and let UpdateVisualSmoothing pull it onto the corrected location
+	// 보이는 메시는 원래 자리에 두고, UpdateVisualSmoothing이 보정된 위치로 끌어당기게 한다
 	const FVector Offset = OldVisualLocation - GetActorLocation();
 	if (Offset.Size() > VisualSnapDistance)
 	{
@@ -176,6 +192,7 @@ void AJGBall::UpdateVisualSmoothing(float DeltaSeconds)
 		return;
 	}
 
+	// 지수 감쇠: 프레임 속도와 상관없이 VisualSmoothingTime마다 오프셋이 약 37%로 줄어든다
 	const float Keep = VisualSmoothingTime > UE_KINDA_SMALL_NUMBER ? FMath::Exp(-DeltaSeconds / VisualSmoothingTime) : 0.0f;
 	VisualMesh->SetRelativeLocation(Offset * Keep);
 }
@@ -187,7 +204,7 @@ void AJGBall::SnapVisual()
 
 void AJGBall::OnRep_RallyState()
 {
-	// a new shot or a reset: drop the old correction so the previous trajectory does not drag the new one
+	// 새 샷이나 초기화: 이전 보정을 버려서 이전 궤적이 새 궤적을 끌고 가지 않게 한다
 	if (RallyState.ShotId != LastSeenShotId)
 	{
 		LastSeenShotId = RallyState.ShotId;
@@ -195,6 +212,10 @@ void AJGBall::OnRep_RallyState()
 		SnapVisual();
 	}
 }
+
+#pragma endregion
+
+#pragma region 네트 통과 기록
 
 void AJGBall::SetCourtFrame(const FTransform& InCourtFrame)
 {
@@ -221,6 +242,7 @@ void AJGBall::UpdateNetCrossing()
 				RallyState.ShotId, RallyState.NetCrossingClearance, RallyState.NetCrossingLateral);
 
 #if ENABLE_DRAW_DEBUG
+			// 초록 = 깨끗하게 통과, 빨강 = 네트 접촉
 			if (CVarJGDrawDebug.GetValueOnGameThread())
 			{
 				const FColor Color = RallyState.NetCrossingClearance >= 0.0f ? FColor::Green : FColor::Red;
@@ -233,6 +255,10 @@ void AJGBall::UpdateNetCrossing()
 	PreviousCourtLocal = CurrentCourtLocal;
 }
 
+#pragma endregion
+
+#pragma region 서버 전용 제어
+
 void AJGBall::HoldAt(const FVector& Location)
 {
 	check(HasAuthority());
@@ -244,6 +270,7 @@ void AJGBall::HoldAt(const FVector& Location)
 	SetMovementActive(false);
 	SetActorLocation(Location, false, nullptr, ETeleportType::ResetPhysics);
 
+	// 순간이동을 네트 통과로 오인하지 않도록 이전 위치도 함께 옮긴다
 	if (bHasCourtFrame)
 	{
 		PreviousCourtLocal = CourtFrame.InverseTransformPosition(Location);
@@ -273,6 +300,10 @@ void AJGBall::ClearRally()
 	ForceNetUpdate();
 }
 
+#pragma endregion
+
+#pragma region 조회
+
 bool AJGBall::IsHittableBy(EJGTeam Team) const
 {
 	return bInPlay && UJGMatchRules::CanTeamHit(RallyState, Team);
@@ -288,11 +319,15 @@ FVector AJGBall::GetBallVelocity() const
 	return Movement->Velocity;
 }
 
+#pragma endregion
+
+#pragma region 이동과 접촉 이벤트
+
 void AJGBall::SetMovementActive(bool bActive)
 {
 	if (bActive)
 	{
-		// OnProjectileStop clears the updated component, so restore it before every launch
+		// OnProjectileStop이 UpdatedComponent를 비우므로 발사할 때마다 다시 지정한다
 		Movement->SetUpdatedComponent(Collision);
 		Movement->Activate(false);
 		Movement->UpdateComponentVelocity();
@@ -306,6 +341,7 @@ void AJGBall::SetMovementActive(bool bActive)
 
 void AJGBall::OnRep_InPlay()
 {
+	// 들기/발사가 바뀌면 클라이언트도 이동을 켜고 끄며, 순간이동이므로 보간하지 않는다
 	SetMovementActive(bInPlay);
 	bSnapNextNetUpdate = true;
 	SnapVisual();
@@ -321,10 +357,11 @@ void AJGBall::HandleBounce(const FHitResult& ImpactResult, const FVector& Impact
 	const UPrimitiveComponent* HitComponent = ImpactResult.GetComponent();
 	if (!HitComponent || !HitComponent->ComponentHasTag(JGTags::Ground()))
 	{
-		// net and other blockers only deflect the ball
+		// 네트와 다른 차단물은 공을 튕기기만 한다
 		return;
 	}
 
+	// 한 번의 착지가 서브스텝에서 여러 번 보고되는 것을 거른다
 	const double Now = GetWorld()->GetTimeSeconds();
 	if (LastGroundContactTime >= 0.0 && Now - LastGroundContactTime < MinGroundContactInterval)
 	{
@@ -353,13 +390,18 @@ void AJGBall::HandleStop(const FHitResult& ImpactResult)
 	OnStopped.Broadcast(this, GetActorLocation());
 }
 
+#pragma endregion
+
+#pragma region 그림자와 디버그 표시
+
 void AJGBall::UpdateShadow()
 {
 	const UWorld* World = GetWorld();
-	// follow the smoothed visual, not the corrected collision
+	// 보정된 충돌체가 아니라 부드럽게 따라가는 보이는 공을 따라간다
 	const FVector Start = VisualMesh->GetComponentLocation();
 	const FVector End = Start - FVector(0.0, 0.0, 5000.0);
 
+	// 공과 같은 JGBall 채널로 쏴서 공이 튕기는 면(코트 바닥)에만 그림자를 놓는다
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(JGBallShadow), false, this);
 	const bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_JGBall, Params);
@@ -370,11 +412,12 @@ void AJGBall::UpdateShadow()
 		return;
 	}
 
-	// the shadow shrinks with height to give a height cue
+	// 높이가 올라갈수록 그림자를 줄여서 높이 단서를 준다 (0-400cm에서 100%-50%)
 	const double Height = Start.Z - Hit.ImpactPoint.Z;
 	const double Scale = FMath::GetMappedRangeValueClamped(TRange<double>(0.0, 400.0), TRange<double>(1.0, 0.5), Height);
 	const double Diameter = VisualRadius * 2.0 * Scale;
 
+	// 바닥과 겹쳐 깜빡이지 않도록 살짝 띄운다
 	ShadowMesh->SetWorldLocation(Hit.ImpactPoint + FVector(0.0, 0.0, 1.5));
 	ShadowMesh->SetWorldScale3D(FVector(Diameter / 100.0, Diameter / 100.0, 0.01));
 }
@@ -387,6 +430,7 @@ void AJGBall::DrawDebugTrajectory() const
 		return;
 	}
 
+	// 현재 속도로 최대 3초 앞까지의 포물선을 그린다 (반발과 충돌은 고려하지 않음)
 	const double GravityZ = GetBallGravityZ();
 	FVector Position = GetActorLocation();
 	FVector Velocity = Movement->Velocity;
@@ -405,3 +449,5 @@ void AJGBall::DrawDebugTrajectory() const
 		nullptr, FColor::White, 0.0f);
 #endif
 }
+
+#pragma endregion

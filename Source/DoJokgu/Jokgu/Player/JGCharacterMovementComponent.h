@@ -5,8 +5,8 @@
 #include "JGCharacterMovementComponent.generated.h"
 
 /**
- *  Applies AJGCharacter::CanMoveNow to input acceleration. The owning client uses it for prediction and the
- *  server uses it when replaying client moves (MoveAutonomous), so a client that ignores the rule is corrected.
+ *  AJGCharacter::CanMoveNow를 입력 가속에 적용한다. 소유 클라이언트는 예측할 때, 서버는 클라이언트 이동을
+ *  재현할 때(MoveAutonomous) 이 함수를 거치므로 규칙을 무시한 클라이언트는 서버 보정으로 되돌아간다.
  */
 UCLASS()
 class UJGCharacterMovementComponent : public UCharacterMovementComponent

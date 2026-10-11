@@ -9,6 +9,8 @@
 #include "UObject/ConstructorHelpers.h"
 #include "DrawDebugHelpers.h"
 
+#pragma region 생성
+
 AJGCourt::AJGCourt()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -20,6 +22,7 @@ AJGCourt::AJGCourt()
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	PlaceholderMaterial = BasicMaterial.Object;
 
+	// 바닥과 네트는 모든 것을 막고, 공 채널(기본 Ignore)도 명시적으로 막아야 공이 튕긴다
 	GroundCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("GroundCollision"));
 	GroundCollision->SetupAttachment(Root);
 	GroundCollision->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -50,6 +53,7 @@ AJGCourt::AJGCourt()
 
 UBoxComponent* AJGCourt::CreatePlayerBlocker(FName Name)
 {
+	// Pawn만 막고 나머지(공 포함)는 모두 통과시킨다
 	UBoxComponent* Box = CreateDefaultSubobject<UBoxComponent>(Name);
 	Box->SetupAttachment(Root);
 	Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -71,6 +75,10 @@ UStaticMeshComponent* AJGCourt::CreateVisualMesh(FName Name, UStaticMesh* Mesh)
 	return MeshComponent;
 }
 
+#pragma endregion
+
+#pragma region 크기 적용
+
 void AJGCourt::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
@@ -88,20 +96,21 @@ void AJGCourt::ApplyDimensions()
 	const double LineWidth = Balance->CourtLineWidth;
 	const double NetHeight = Balance->NetHeight;
 	const double BlockerHalfHeight = PlayerBlockerHeight * 0.5;
+	// 바닥은 플레이어 영역보다 최소 1m 더 넓게 깐다
 	const double GroundHalf = FMath::Max3<double>(GroundHalfExtent,HalfLength + Margin + 100.0, HalfWidth + Margin + 100.0);
 
-	// collision: floor top at local Z = 0
+	// 충돌: 바닥 윗면이 로컬 Z = 0
 	PlaceBox(GroundCollision, FVector(0.0, 0.0, -50.0), FVector(GroundHalf, GroundHalf, 50.0));
 	PlaceBox(NetCollision, FVector(0.0, 0.0, NetHeight * 0.5), FVector(Balance->NetThickness * 0.5, HalfWidth + 50.0, NetHeight * 0.5));
 
-	// player area: own half plus the defensive margin
+	// 플레이어 영역: 자기 진영 절반 + 수비 여유 공간. 벽 두께는 10cm.
 	PlaceBox(NetPlayerBlocker, FVector(0.0, 0.0, BlockerHalfHeight), FVector(5.0, HalfWidth + Margin, BlockerHalfHeight));
 	PlaceBox(SideBlockerLeft, FVector(0.0, -(HalfWidth + Margin + 5.0), BlockerHalfHeight), FVector(HalfLength + Margin, 5.0, BlockerHalfHeight));
 	PlaceBox(SideBlockerRight, FVector(0.0, HalfWidth + Margin + 5.0, BlockerHalfHeight), FVector(HalfLength + Margin, 5.0, BlockerHalfHeight));
 	PlaceBox(BackBlockerA, FVector(-(HalfLength + Margin + 5.0), 0.0, BlockerHalfHeight), FVector(5.0, HalfWidth + Margin, BlockerHalfHeight));
 	PlaceBox(BackBlockerB, FVector(HalfLength + Margin + 5.0, 0.0, BlockerHalfHeight), FVector(5.0, HalfWidth + Margin, BlockerHalfHeight));
 
-	// visuals: lines sit inside the court rectangle so their outer edge matches the judgement boundary
+	// 표시: 선을 코트 사각형 안쪽에 놓아 선의 바깥 가장자리가 판정 경계와 맞게 한다
 	PlaceCube(GroundMesh, FVector(0.0, 0.0, -1.0), FVector(GroundHalf * 2.0, GroundHalf * 2.0, 2.0));
 	PlaceCube(CourtSurfaceMesh, FVector(0.0, 0.0, 0.25), FVector(HalfLength * 2.0, HalfWidth * 2.0, 0.5));
 	PlaceCube(LineSideLeft, FVector(0.0, -(HalfWidth - LineWidth * 0.5), 0.5), FVector(HalfLength * 2.0, LineWidth, 1.0));
@@ -134,7 +143,7 @@ void AJGCourt::PlaceBox(UBoxComponent* Box, const FVector& LocalCenter, const FV
 
 void AJGCourt::PlaceCube(UStaticMeshComponent* Mesh, const FVector& LocalCenter, const FVector& Size) const
 {
-	// engine cube is 100 units wide with a centered pivot
+	// 엔진 큐브는 한 변이 100 단위이고 피벗이 중심에 있다
 	Mesh->SetRelativeLocation(LocalCenter);
 	Mesh->SetRelativeScale3D(Size / 100.0);
 }
@@ -146,6 +155,7 @@ void AJGCourt::ApplyColor(UStaticMeshComponent* Mesh, const FLinearColor& Color)
 		return;
 	}
 
+	// OnConstruction이 반복 호출돼도 동적 재질을 매번 새로 만들지 않고 재사용한다
 	UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Mesh->GetMaterial(0));
 	if (!Material || Material->Parent != PlaceholderMaterial)
 	{
@@ -158,6 +168,8 @@ void AJGCourt::ApplyColor(UStaticMeshComponent* Mesh, const FLinearColor& Color)
 	}
 }
 
+#pragma endregion
+
 void AJGCourt::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -167,6 +179,8 @@ void AJGCourt::Tick(float DeltaSeconds)
 		DrawDebugCourt();
 	}
 }
+
+#pragma region 판정 좌표 조회
 
 float AJGCourt::GetHalfLength() const
 {
@@ -199,12 +213,17 @@ EJGCourtZone AJGCourt::ClassifyWorldLocation(const FVector& WorldLocation) const
 	return UJGMatchRules::ClassifyCourtPoint(FVector2D(Local.X, Local.Y), GetHalfLength(), GetHalfWidth());
 }
 
+#pragma endregion
+
+#pragma region 시작 위치와 카메라
+
 FTransform AJGCourt::GetStartTransform(EJGTeam Team, bool bIsServing) const
 {
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	const double Distance = bIsServing ? Balance->ServeSpotDistanceFromNet : Balance->ReceiveSpotDistanceFromNet;
 	const double Sign = GetAttackSign(Team);
 
+	// 자기 진영(공격 방향의 반대쪽)에 서서 공격 방향을 바라본다
 	const FVector LocalLocation(-Sign * Distance, 0.0, Balance->PlayerSpawnHeight);
 	const FRotator LocalRotation(0.0, Sign > 0.0 ? 0.0 : 180.0, 0.0);
 
@@ -221,18 +240,23 @@ FTransform AJGCourt::GetCameraViewTransform(EJGTeam Team, const FVector& FollowW
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	const double Sign = GetAttackSign(Team);
 
-	// lateral follow with a dead zone and a hard limit so the camera does not shake with every step
+	// 데드존과 최대치를 둔 좌우 추적. 한 걸음마다 카메라가 흔들리지 않게 한다.
 	const FVector FollowLocal = GetActorTransform().InverseTransformPosition(FollowWorldLocation);
 	const double Excess = FMath::Max(0.0, FMath::Abs(FollowLocal.Y) - Balance->CameraLateralDeadZone);
 	const double Lateral = FMath::Clamp(FMath::Sign(FollowLocal.Y) * Excess * Balance->CameraLateralFollowRatio,
 		-Balance->CameraLateralMaxOffset, Balance->CameraLateralMaxOffset);
 
+	// 초점에서 시선 반대 방향으로 CameraDistance만큼 물러난 곳이 카메라 위치다
 	const FVector FocusLocal(-Sign * Balance->CameraFocusDistanceFromNet, Lateral, 0.0);
 	const FRotator LocalRotation(Balance->CameraPitch, Sign > 0.0 ? 0.0 : 180.0, 0.0);
 	const FVector CameraLocal = FocusLocal - LocalRotation.Vector() * Balance->CameraDistance;
 
 	return FTransform(GetActorQuat() * LocalRotation.Quaternion(), GetActorTransform().TransformPosition(CameraLocal));
 }
+
+#pragma endregion
+
+#pragma region 디버그 표시
 
 void AJGCourt::DrawDebugCourt() const
 {
@@ -255,6 +279,7 @@ void AJGCourt::DrawDebugCourt() const
 		DrawDebugLine(World, P3, P0, Color, false, -1.0f, 0, 2.0f);
 	};
 
+	// 파랑 = A 코트, 빨강 = B 코트, 노랑 = 플레이어 이동 영역
 	DrawRect(-HalfLength, 0.0, -HalfWidth, HalfWidth, FColor::Blue);
 	DrawRect(0.0, HalfLength, -HalfWidth, HalfWidth, FColor::Red);
 	DrawRect(-HalfLength - Margin, HalfLength + Margin, -HalfWidth - Margin, HalfWidth + Margin, FColor::Yellow);
@@ -263,3 +288,5 @@ void AJGCourt::DrawDebugCourt() const
 	DrawDebugString(World, GetTeamCourtCenter(EJGTeam::B) + FVector(0, 0, 30), TEXT("Court B"), nullptr, FColor::Red, 0.0f);
 #endif
 }
+
+#pragma endregion

@@ -24,9 +24,14 @@
 
 namespace
 {
+	/** 슬라이딩 RootMotionSource 이름. 취소할 때 이 이름으로 찾아서 지운다. */
 	const FName SlideRootMotionName(TEXT("JGSlide"));
+
+	/** 캐릭터 데이터가 없을 때 쓰는 능력치 (배율 100%) */
 	constexpr int32 DefaultStat = 3;
 }
+
+#pragma region 초기화와 입력 바인딩
 
 AJGCharacter::AJGCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJGCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -35,6 +40,7 @@ AJGCharacter::AJGCharacter(const FObjectInitializer& ObjectInitializer)
 
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
 
+	// 캐릭터는 컨트롤러 회전이 아니라 이동 방향을 바라본다
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
@@ -47,13 +53,14 @@ AJGCharacter::AJGCharacter(const FObjectInitializer& ObjectInitializer)
 	Movement->BrakingDecelerationWalking = 2500.0f;
 	Movement->GetNavAgentPropertiesRef().bCanJump = false;
 
+	// 카메라는 캐릭터를 따라 움직이지 않고 UpdateMatchCamera가 월드 위치를 직접 정한다
 	MatchCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("MatchCamera"));
 	MatchCamera->SetupAttachment(RootComponent);
 	MatchCamera->SetUsingAbsoluteLocation(true);
 	MatchCamera->SetUsingAbsoluteRotation(true);
 	MatchCamera->bUsePawnControlRotation = false;
 
-	// Note: skeletal mesh and anim blueprint are set in BP_JGCharacter or through UJGCharacterData
+	// 참고: 스켈레탈 메시와 애님 블루프린트는 BP_JGCharacter 또는 UJGCharacterData에서 지정한다
 }
 
 void AJGCharacter::BeginPlay()
@@ -144,7 +151,9 @@ void AJGCharacter::Tick(float DeltaSeconds)
 	}
 }
 
-// ----- Movement -----
+#pragma endregion
+
+#pragma region 이동
 
 void AJGCharacter::DoMove(float Right, float Forward)
 {
@@ -153,7 +162,7 @@ void AJGCharacter::DoMove(float Right, float Forward)
 		return;
 	}
 
-	// camera basis projected on the floor, so "up" on screen is always toward the opponent
+	// 카메라 축을 바닥에 투영해서 쓰므로 화면 "위"는 언제나 상대 쪽이다
 	const FRotator YawRotation(0.0, MatchCamera->GetComponentRotation().Yaw, 0.0);
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
@@ -161,6 +170,7 @@ void AJGCharacter::DoMove(float Right, float Forward)
 	AddMovementInput(ForwardDirection, Forward);
 	AddMovementInput(RightDirection, Right);
 
+	// 아주 작은 스틱 입력은 슬라이딩 방향으로 기억하지 않는다
 	const FVector Desired = ForwardDirection * Forward + RightDirection * Right;
 	if (Desired.SizeSquared2D() > 0.01)
 	{
@@ -181,12 +191,13 @@ bool AJGCharacter::CanMoveNow() const
 		return true;
 	}
 
-	// also enforced by the server through UJGCharacterMovementComponent
+	// 서버도 UJGCharacterMovementComponent를 통해 같은 규칙을 강제한다
 	switch (JGGameState->GetPhase())
 	{
 	case EJGMatchPhase::MatchEnd:
 		return false;
 
+	// 서브하는 쪽은 서브 위치에 고정, 받는 쪽은 움직일 수 있다
 	case EJGMatchPhase::PreparingServe:
 	case EJGMatchPhase::Serving:
 		return GetTeam() != JGGameState->GetServingTeam();
@@ -196,7 +207,9 @@ bool AJGCharacter::CanMoveNow() const
 	}
 }
 
-// ----- Attack -----
+#pragma endregion
+
+#pragma region 공격
 
 void AJGCharacter::SubmitAttack(const FJGAttackInput& Input)
 {
@@ -229,7 +242,7 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 
-	// never trust client values beyond the allowed ranges
+	// 클라이언트 값은 허용 범위 밖이면 믿지 않고 잘라 낸다
 	FJGAttackInput Sanitized = Input;
 	Sanitized.Power = FMath::Clamp(Sanitized.Power, 0.0f, 1.0f);
 	Sanitized.AimAngleDeg = FMath::Clamp(Sanitized.AimAngleDeg, -Balance->AimAngleLimitDeg, Balance->AimAngleLimitDeg);
@@ -240,6 +253,7 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 		return;
 	}
 
+	// 서브는 공을 들고 있으므로 범위 검사 없이 바로 친다
 	if (bIsServe)
 	{
 		if (AJGBall* Ball = JGGameState->GetBall())
@@ -249,7 +263,7 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 		return;
 	}
 
-	// single buffer slot: a new input replaces the previous one
+	// 저장 슬롯은 하나: 새 입력이 이전 입력을 대신한다
 	BufferedAttack = Sanitized;
 	BufferedAttackExpireTime = GetWorld()->GetTimeSeconds() + Balance->AttackInputBufferTime;
 
@@ -258,6 +272,7 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 
 void AJGCharacter::TickServerHitCheck()
 {
+	// 슬라이딩 중에는 일반 공격 대신 자동 수비 타격만 검사한다
 	if (SlideState == EJGSlideState::Sliding)
 	{
 		TryExecuteSlideSave();
@@ -289,6 +304,7 @@ bool AJGCharacter::TryExecuteBufferedAttack()
 	const AJGGameStateBase* JGGameState = GetJGGameState();
 	AJGBall* Ball = JGGameState ? JGGameState->GetBall() : nullptr;
 
+	// 저장된 입력은 랠리 공격 전용이다. 그사이 서브 단계가 됐으면 실행하지 않는다.
 	bool bIsServe = false;
 	if (!GameMode || !Ball || !GameMode->CanCharacterAttack(this, bIsServe) || bIsServe)
 	{
@@ -324,16 +340,17 @@ void AJGCharacter::ExecuteHit(AJGBall& Ball, const FJGAttackInput& Input, bool b
 	}
 
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
+	// Input이 BufferedAttack을 가리킬 수 있어서 지우기 전에 복사해 둔다
 	const FJGAttackInput UsedInput = Input;
 
-	// accuracy deviation is rolled once here and replicated through the ball velocity
+	// 정확도 오차는 여기서 한 번 뽑고, 공 속도를 통해 복제된다
 	const float KickMultiplier = Balance->GetStatMultiplier(GetStat(&UJGCharacterData::KickPowerStat));
 	const float MaxDeviation = Balance->GetAccuracyDeviationDeg(GetStat(&UJGCharacterData::AccuracyStat));
 	const float Deviation = MaxDeviation > 0.0f ? FMath::FRandRange(-MaxDeviation, MaxDeviation) : 0.0f;
 
 	const FVector Velocity = UJGShotCalculator::ComputeAttackVelocity(*Court, GetTeam(), Ball.GetActorLocation(), UsedInput, KickMultiplier, Deviation, Ball.GetBallGravityZ());
 
-	// consume the input first so the same ball can never be hit twice by one input
+	// 입력을 먼저 소비해서 입력 하나로 같은 공을 두 번 치는 일이 없게 한다
 	ClearBufferedAttack();
 	NextAttackAllowedTime = GetWorld()->GetTimeSeconds() + Balance->AttackRecoveryTime;
 
@@ -371,8 +388,8 @@ void AJGCharacter::MulticastPlayKickMotion_Implementation(EJGKickMotion Motion)
 	{
 		if (UAnimMontage* Montage = CharacterData->GetMontageForMotion(Motion))
 		{
-			// The server already launched the ball. Skip visual windup for confirmed hits.
-			// Sliding is requested before contact and must play its complete start/loop/recovery.
+			// 서버가 이미 공을 발사했으므로 확정된 타격은 준비 동작을 건너뛰고 Contact 구간부터 재생한다.
+			// 슬라이딩은 접촉 전에 요청되므로 시작/반복/회복 전체를 재생해야 한다.
 			const FName StartSection = Motion != EJGKickMotion::Slide && Montage->IsValidSectionName(TEXT("Contact"))
 				? FName(TEXT("Contact")) : NAME_None;
 			PlayAnimMontage(Montage, 1.f, StartSection);
@@ -382,7 +399,9 @@ void AJGCharacter::MulticastPlayKickMotion_Implementation(EJGKickMotion Motion)
 	OnKickMotionPlayed(Motion);
 }
 
-// ----- Slide -----
+#pragma endregion
+
+#pragma region 슬라이딩
 
 void AJGCharacter::DoSlide()
 {
@@ -394,7 +413,7 @@ void AJGCharacter::DoSlide()
 	FVector Direction = LastMoveDirection.IsNearlyZero() ? GetAttackForward() : LastMoveDirection;
 	Direction = Direction.GetSafeNormal2D();
 
-	// remote clients predict the slide, the server applies the authoritative one
+	// 원격 클라이언트는 슬라이딩을 예측 실행하고, 서버가 권한 있는 슬라이딩을 적용한다
 	if (!HasAuthority())
 	{
 		StartSlide(Direction);
@@ -429,7 +448,8 @@ void AJGCharacter::StartSlide(const FVector& Direction)
 	bSlideSaveUsed = false;
 	ClearBufferedAttack();
 
-	// movement goes through CharacterMovement so it is predicted and corrected like normal walking
+	// 이동은 CharacterMovement를 거치므로 일반 걷기처럼 예측과 보정을 받는다.
+	// 일정한 속도로 SlideActiveTime 동안 SlideDistance만큼 미끄러지고 끝나면 멈춘다.
 	TSharedPtr<FRootMotionSource_ConstantForce> Force = MakeShared<FRootMotionSource_ConstantForce>();
 	Force->InstanceName = SlideRootMotionName;
 	Force->AccumulateMode = ERootMotionAccumulateMode::Override;
@@ -481,7 +501,7 @@ void AJGCharacter::TryExecuteSlideSave()
 		return;
 	}
 
-	// widened reach only while sliding
+	// 슬라이딩 중에만 넓어지는 리치
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	const float ReachMultiplier = Balance->GetStatMultiplier(GetStat(&UJGCharacterData::ReachStat));
 
@@ -492,12 +512,15 @@ void AJGCharacter::TryExecuteSlideSave()
 
 	const FVector Velocity = UJGShotCalculator::ComputeSlideReturnVelocity(*Court, GetTeam(), Ball->GetActorLocation(), Ball->GetBallGravityZ());
 
+	// 슬라이딩 수비는 킥 몽타주를 따로 재생하지 않고, 슬라이딩 시작 때 재생한 몽타주를 그대로 이어 간다
 	bSlideSaveUsed = true;
 	Ball->LaunchByHit(Velocity, GetTeam());
 	GameMode->NotifyBallHit(this, false);
 }
 
-// ----- Point reset -----
+#pragma endregion
+
+#pragma region 득점 후 초기화
 
 void AJGCharacter::ResetForNewPoint()
 {
@@ -517,7 +540,9 @@ void AJGCharacter::ClientResetForNewPoint_Implementation()
 	SetAimPreview(false, 0.0f, 0.0f);
 }
 
-// ----- Data -----
+#pragma endregion
+
+#pragma region 캐릭터 데이터
 
 void AJGCharacter::SetCharacterData(UJGCharacterData* NewData)
 {
@@ -532,6 +557,7 @@ void AJGCharacter::OnRep_CharacterData()
 
 void AJGCharacter::ApplyCharacterData()
 {
+	// 이동 속도는 서버와 클라이언트가 같아야 이동 예측이 어긋나지 않으므로 양쪽에서 적용한다
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	GetCharacterMovement()->MaxWalkSpeed = Balance->BaseMoveSpeed * Balance->GetStatMultiplier(GetStat(&UJGCharacterData::MoveSpeedStat));
 
@@ -551,7 +577,9 @@ void AJGCharacter::ApplyCharacterData()
 	}
 }
 
-// ----- Queries -----
+#pragma endregion
+
+#pragma region 조회
 
 EJGTeam AJGCharacter::GetTeam() const
 {
@@ -569,6 +597,7 @@ FVector AJGCharacter::GetAttackForward() const
 		return GetActorForwardVector();
 	}
 
+	// 팀이 아직 복제되지 않았으면 A팀 기준으로 본다
 	const EJGTeam Team = GetTeam();
 	return Court->GetAttackForward(Team == EJGTeam::None ? EJGTeam::A : Team);
 }
@@ -584,7 +613,9 @@ AJGGameStateBase* AJGCharacter::GetJGGameState() const
 	return World ? World->GetGameState<AJGGameStateBase>() : nullptr;
 }
 
-// ----- Presentation -----
+#pragma endregion
+
+#pragma region 표시
 
 void AJGCharacter::SetAimPreview(bool bVisible, float AimAngleDeg, float Power)
 {
@@ -612,7 +643,7 @@ void AJGCharacter::UpdateMatchCamera(float DeltaSeconds)
 
 	const FTransform Target = Court->GetCameraViewTransform(Team, GetActorLocation());
 
-	// snap when the team becomes known, otherwise follow smoothly
+	// 팀이 정해지는 순간에는 바로 옮기고, 그 뒤에는 부드럽게 따라간다
 	if (!bCameraInitialized || CameraTeam != Team)
 	{
 		bCameraInitialized = true;
@@ -635,6 +666,7 @@ void AJGCharacter::DrawAimPreview() const
 		return;
 	}
 
+	// 화살표 길이는 파워에 비례하고, 색은 재생될 킥 동작 구간(약/중/강)을 나타낸다
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	const FVector Direction = UJGShotCalculator::GetAimDirection(GetAttackForward(), AimPreviewAngle);
 	const FVector Start = GetFootLocation() + FVector(0.0, 0.0, 10.0);
@@ -657,6 +689,7 @@ void AJGCharacter::DrawAimPreview() const
 void AJGCharacter::DrawDebugReach() const
 {
 #if ENABLE_DRAW_DEBUG
+	// 발 높이와 최대 타격 높이에 리치 원을 그린다. 초록 = 평소, 주황 = 슬라이딩 중.
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	const float ReachMultiplier = Balance->GetStatMultiplier(GetStat(&UJGCharacterData::ReachStat));
 	const bool bSliding = SlideState == EJGSlideState::Sliding;
@@ -669,3 +702,5 @@ void AJGCharacter::DrawDebugReach() const
 	DrawDebugCircle(GetWorld(), Foot + FVector(0.0, 0.0, MaxHeight), Reach, 32, Color, false, -1.0f, 0, 1.0f, FVector::ForwardVector, FVector::RightVector, false);
 #endif
 }
+
+#pragma endregion

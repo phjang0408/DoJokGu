@@ -8,7 +8,7 @@ class UJGBalanceData;
 
 /**
  *  Project Settings > Game > Jokgu
- *  Points the code at the balance asset so every system reads the same numbers.
+ *  모든 시스템이 같은 수치를 읽도록 코드가 사용할 밸런스 에셋을 지정한다.
  */
 UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="Jokgu"))
 class UJGGameSettings : public UDeveloperSettings
@@ -17,7 +17,7 @@ class UJGGameSettings : public UDeveloperSettings
 
 public:
 
-	/** Balance asset used by every system. If unset, the UJGBalanceData class defaults are used. */
+	/** 모든 시스템이 쓰는 밸런스 에셋. 비우면 UJGBalanceData 클래스 기본값을 쓴다. */
 	UPROPERTY(Config, EditAnywhere, Category="Balance")
 	TSoftObjectPtr<UJGBalanceData> BalanceData;
 

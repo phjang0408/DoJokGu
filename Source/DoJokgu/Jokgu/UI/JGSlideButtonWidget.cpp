@@ -5,8 +5,11 @@
 UJGSlideButtonWidget::UJGSlideButtonWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// 히트 테스트를 받아야 터치가 들어온다
 	SetVisibility(ESlateVisibility::Visible);
 }
+
+#pragma region 포인터 이벤트
 
 FReply UJGSlideButtonWidget::NativeOnTouchStarted(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent)
 {
@@ -46,9 +49,13 @@ void UJGSlideButtonWidget::NativeOnMouseCaptureLost(const FCaptureLostEvent& Cap
 	ActivePointerIndex = INDEX_NONE;
 }
 
+#pragma endregion
+
+#pragma region 누름 처리와 그리기
+
 FReply UJGSlideButtonWidget::Press(const FPointerEvent& InEvent)
 {
-	// a second finger on the button is swallowed so it cannot start an attack gesture underneath
+	// 버튼 위의 두 번째 손가락은 삼켜서 아래 공격 영역의 제스처가 시작되지 않게 한다
 	if (bPressed)
 	{
 		return FReply::Handled();
@@ -80,7 +87,7 @@ FReply UJGSlideButtonWidget::Release(const FPointerEvent& InEvent)
 bool UJGSlideButtonWidget::IsSlideReady() const
 {
 	const AJGCharacter* Character = GetOwningPlayerPawn<AJGCharacter>();
-	// CanMoveNow covers the slide state, match end and the serving player; the server still checks the phase
+	// CanMoveNow가 슬라이딩 상태, 경기 종료, 서브하는 쪽을 함께 확인한다. 단계 검사는 서버가 따로 한다.
 	return Character && Character->CanMoveNow();
 }
 
@@ -96,3 +103,5 @@ int32 UJGSlideButtonWidget::NativePaint(const FPaintArgs& Args, const FGeometry&
 
 	return MaxLayer;
 }
+
+#pragma endregion

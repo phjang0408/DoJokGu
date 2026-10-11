@@ -5,6 +5,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "DoJokgu.h"
 
+#pragma region 초기화
+
 void UJGSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -26,6 +28,10 @@ void UJGSessionSubsystem::Deinitialize()
 
 	Super::Deinitialize();
 }
+
+#pragma endregion
+
+#pragma region 방 흐름
 
 void UJGSessionSubsystem::HostMatch(const FString& MapPath)
 {
@@ -53,9 +59,13 @@ void UJGSessionSubsystem::LeaveToMenu(const FString& MenuMapPath)
 {
 	UE_LOG(LogDoJokgu, Log, TEXT("Leaving match to %s"), *MenuMapPath);
 
-	// opening a level without ?listen closes the listen server or the client connection
+	// ?listen 없이 레벨을 열면 Listen Server나 클라이언트 연결이 닫힌다
 	UGameplayStatics::OpenLevel(this, FName(*MenuMapPath), true);
 }
+
+#pragma endregion
+
+#pragma region 실패 알림
 
 void UJGSessionSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
 {
@@ -73,3 +83,5 @@ void UJGSessionSubsystem::ReportFailure(const FString& Reason)
 	UE_LOG(LogDoJokgu, Warning, TEXT("%s"), *Reason);
 	OnConnectionFailed.Broadcast(Reason);
 }
+
+#pragma endregion

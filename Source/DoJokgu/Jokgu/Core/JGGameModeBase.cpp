@@ -13,6 +13,8 @@
 #include "TimerManager.h"
 #include "DoJokgu.h"
 
+#pragma region 엔진 오버라이드
+
 AJGGameModeBase::AJGGameModeBase()
 {
 	GameStateClass = AJGGameStateBase::StaticClass();
@@ -37,6 +39,7 @@ void AJGGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* 
 {
 	EnsureCourtAndBall();
 
+	// Super가 RestartPlayer로 스폰하기 전에 팀과 캐릭터를 정해야 시작 위치와 외형이 맞는다
 	if (AJGPlayerState* PlayerState = NewPlayer ? NewPlayer->GetPlayerState<AJGPlayerState>() : nullptr)
 	{
 		if (PlayerState->GetTeam() == EJGTeam::None)
@@ -44,6 +47,7 @@ void AJGGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* 
 			PlayerState->SetTeam(FindFreeTeam());
 		}
 
+		// 로비에서 캐릭터를 골라 왔으면(CopyProperties) 그대로 쓴다
 		const UJGCharacterData* StartingData = GetStartingCharacterData(PlayerState->GetTeam());
 		if (PlayerState->GetCharacterId().IsNone() && StartingData)
 		{
@@ -68,6 +72,7 @@ void AJGGameModeBase::RestartPlayer(AController* NewPlayer)
 	const AJGPlayerState* PlayerState = NewPlayer->GetPlayerState<AJGPlayerState>();
 	const AJGGameStateBase* JGGameState = GetJGGameState();
 
+	// 팀이 없는 관전자 등은 엔진 기본 PlayerStart 규칙을 따른다
 	if (!Court || !PlayerState || PlayerState->GetTeam() == EJGTeam::None || !JGGameState)
 	{
 		Super::RestartPlayer(NewPlayer);
@@ -88,6 +93,7 @@ void AJGGameModeBase::Logout(AController* Exiting)
 	AJGPlayerState* PlayerState = Exiting ? Exiting->GetPlayerState<AJGPlayerState>() : nullptr;
 	const bool bWasOnTeam = PlayerState && PlayerState->GetTeam() != EJGTeam::None;
 
+	// 팀을 비워 두어야 다음에 들어오는 플레이어가 이 자리를 받는다
 	if (PlayerState)
 	{
 		PlayerState->SetTeam(EJGTeam::None);
@@ -109,7 +115,7 @@ void AJGGameModeBase::Logout(AController* Exiting)
 		return;
 	}
 
-	// first version: leaving ends the match, the remaining player sees the reason
+	// 첫 버전: 나가면 경기가 끝나고, 남은 플레이어에게 사유를 보여 준다
 	if (CountTeamPlayers(Exiting) < GetRequiredPlayers())
 	{
 		EndMatch(EJGMatchEndReason::PlayerLeft, EJGTeam::None);
@@ -122,6 +128,7 @@ void AJGGameModeBase::StartPlay()
 
 	Super::StartPlay();
 
+	// 연습 모드는 서브 없이 바로 랠리 상태로 두어 공 발사기의 공을 칠 수 있게 한다
 	if (bPracticeMode)
 	{
 		SetPhase(EJGMatchPhase::Rally, 0.0f);
@@ -130,6 +137,10 @@ void AJGGameModeBase::StartPlay()
 
 	TryStartMatch();
 }
+
+#pragma endregion
+
+#pragma region 코트와 공, 경기 시작
 
 void AJGGameModeBase::EnsureCourtAndBall()
 {
@@ -187,6 +198,7 @@ void AJGGameModeBase::TryStartMatch()
 		return;
 	}
 
+	// 상대가 나가서 끝난 경기는 새 플레이어가 오면 새 경기로 시작한다
 	const FJGMatchSnapshot Match = JGGameState->GetMatch();
 	const bool bCanStart = Match.Phase == EJGMatchPhase::WaitingPlayers
 		|| (Match.Phase == EJGMatchPhase::MatchEnd && Match.EndReason == EJGMatchEndReason::PlayerLeft);
@@ -210,7 +222,7 @@ void AJGGameModeBase::StartNewMatch()
 	FJGMatchSnapshot& Match = JGGameState->EditMatch();
 	Match = FJGMatchSnapshot();
 
-	// first serve is decided by the host and replicated to both players
+	// 첫 서브는 Host가 정해서 두 플레이어에게 복제한다
 	const bool bHasA = HasPlayerOnTeam(EJGTeam::A);
 	const bool bHasB = HasPlayerOnTeam(EJGTeam::B);
 	if (bHasA && bHasB)
@@ -235,6 +247,10 @@ void AJGGameModeBase::StartNewMatch()
 	EnterPreparingServe();
 }
 
+#pragma endregion
+
+#pragma region 단계 전환과 득점
+
 void AJGGameModeBase::EnterPreparingServe()
 {
 	AJGGameStateBase* JGGameState = GetJGGameState();
@@ -245,6 +261,7 @@ void AJGGameModeBase::EnterPreparingServe()
 
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 
+	// 서브할 팀에 사람이 없으면(혼자 경기 등) 상대 팀이 서브한다
 	FJGMatchSnapshot& Match = JGGameState->EditMatch();
 	if (!HasPlayerOnTeam(Match.ServingTeam))
 	{
@@ -258,7 +275,7 @@ void AJGGameModeBase::EnterPreparingServe()
 	++Match.RoundNumber;
 	bPointResolvedThisRound = false;
 
-	// every point resets positions, the ball, buffered inputs and defensive state together
+	// 득점마다 위치, 공, 저장된 입력, 수비 상태를 한꺼번에 초기화한다
 	ResetPlayersForServe();
 	PlaceBallForServe();
 
@@ -315,6 +332,7 @@ void AJGGameModeBase::AwardPoint(EJGTeam ScoringTeam, EJGPointReason Reason)
 	bPointResolvedThisRound = true;
 	ClearPhaseTimer();
 
+	// 공은 계속 굴러가게 두고 판정만 멈춘다
 	if (Ball)
 	{
 		Ball->ClearRally();
@@ -330,7 +348,7 @@ void AJGGameModeBase::AwardPoint(EJGTeam ScoringTeam, EJGPointReason Reason)
 		++Match.ScoreB;
 	}
 
-	// serve goes to the player who scored
+	// 득점한 쪽이 다음 서브를 넣는다
 	Match.LastScoringTeam = ScoringTeam;
 	Match.LastPointReason = Reason;
 	Match.ServingTeam = ScoringTeam;
@@ -362,6 +380,7 @@ void AJGGameModeBase::EndMatch(EJGMatchEndReason Reason, EJGTeam Winner)
 	Match.WinnerTeam = Winner;
 	Match.EndReason = Reason;
 
+	// 재경기 투표는 결과 화면에서 새로 받는다
 	for (APlayerState* PlayerState : JGGameState->PlayerArray)
 	{
 		if (AJGPlayerState* JGPlayerState = Cast<AJGPlayerState>(PlayerState))
@@ -375,6 +394,10 @@ void AJGGameModeBase::EndMatch(EJGMatchEndReason Reason, EJGTeam Winner)
 	SetPhase(EJGMatchPhase::MatchEnd, 0.0f);
 }
 
+#pragma endregion
+
+#pragma region 단계 타이머
+
 void AJGGameModeBase::SetPhase(EJGMatchPhase Phase, float Duration)
 {
 	AJGGameStateBase* JGGameState = GetJGGameState();
@@ -383,6 +406,7 @@ void AJGGameModeBase::SetPhase(EJGMatchPhase Phase, float Duration)
 		return;
 	}
 
+	// 종료 시각을 서버 월드 시간으로 보내야 클라이언트가 같은 남은 시간을 계산한다
 	FJGMatchSnapshot& Match = JGGameState->EditMatch();
 	Match.Phase = Phase;
 	Match.PhaseEndServerTime = Duration > 0.0f ? JGGameState->GetServerWorldTimeSeconds() + Duration : 0.0;
@@ -392,6 +416,7 @@ void AJGGameModeBase::SetPhase(EJGMatchPhase Phase, float Duration)
 
 void AJGGameModeBase::SetPhaseTimer(void (AJGGameModeBase::*Callback)(), float Delay)
 {
+	// 대기 시간을 0으로 조정한 경우에도 단계가 멈추지 않도록 바로 넘어간다
 	if (Delay <= 0.0f)
 	{
 		ClearPhaseTimer();
@@ -406,6 +431,10 @@ void AJGGameModeBase::ClearPhaseTimer()
 {
 	GetWorldTimerManager().ClearTimer(PhaseTimer);
 }
+
+#pragma endregion
+
+#pragma region 서브 배치
 
 void AJGGameModeBase::ResetPlayersForServe()
 {
@@ -447,6 +476,7 @@ void AJGGameModeBase::PlaceBallForServe()
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
 	const EJGTeam ServingTeam = JGGameState->GetServingTeam();
 
+	// 서브하는 캐릭터가 아직 없으면 시작 위치에서 발 높이를 추정한다
 	FVector FootLocation = Court->GetStartTransform(ServingTeam, true).GetLocation() - FVector(0.0, 0.0, Balance->PlayerSpawnHeight);
 	if (const AJGCharacter* Server = FindCharacterOnTeam(ServingTeam))
 	{
@@ -459,6 +489,10 @@ void AJGGameModeBase::PlaceBallForServe()
 
 	Ball->HoldAt(HoldLocation);
 }
+
+#pragma endregion
+
+#pragma region 캐릭터 요청 처리
 
 bool AJGGameModeBase::CanCharacterAttack(const AJGCharacter* Character, bool& bOutIsServe) const
 {
@@ -478,7 +512,7 @@ bool AJGGameModeBase::CanCharacterAttack(const AJGCharacter* Character, bool& bO
 	switch (JGGameState->GetPhase())
 	{
 	case EJGMatchPhase::Serving:
-		// the serve uses the same tap/drag input as any attack, without the reach check
+		// 서브도 일반 공격과 같은 탭/드래그 입력을 쓰고, 타격 범위 검사만 하지 않는다
 		bOutIsServe = Character->GetTeam() == JGGameState->GetServingTeam();
 		return bOutIsServe;
 
@@ -498,6 +532,7 @@ bool AJGGameModeBase::CanCharacterSlide(const AJGCharacter* Character) const
 
 void AJGGameModeBase::NotifyBallHit(AJGCharacter* Hitter, bool bWasServe)
 {
+	// 랠리 중 타격은 단계를 바꾸지 않는다. 서브가 들어가는 순간에만 Serving -> Rally로 넘긴다.
 	const AJGGameStateBase* JGGameState = GetJGGameState();
 	if (!bWasServe || bPracticeMode || !JGGameState || JGGameState->GetPhase() != EJGMatchPhase::Serving)
 	{
@@ -516,6 +551,7 @@ void AJGGameModeBase::HandleRematchRequest(APlayerController* Requester)
 		return;
 	}
 
+	// 상대가 나가서 끝난 경기는 재경기가 아니라 새 플레이어를 기다린다
 	if (JGGameState->GetMatch().EndReason != EJGMatchEndReason::ScoreReached)
 	{
 		return;
@@ -539,6 +575,7 @@ void AJGGameModeBase::HandleRematchRequest(APlayerController* Requester)
 		}
 	}
 
+	// 팀에 속한 모든 플레이어가 동의해야 새 경기를 시작한다
 	if (Players >= GetRequiredPlayers() && Votes == Players)
 	{
 		StartNewMatch();
@@ -561,11 +598,16 @@ void AJGGameModeBase::HandleCharacterSelect(APlayerController* Requester, FName 
 
 	PlayerState->SetCharacterId(CharacterId);
 
+	// 이미 스폰된 캐릭터에도 바로 적용한다
 	if (AJGCharacter* Character = Cast<AJGCharacter>(Requester->GetPawn()))
 	{
 		Character->SetCharacterData(FindCharacterData(CharacterId));
 	}
 }
+
+#pragma endregion
+
+#pragma region 공 판정
 
 void AJGGameModeBase::HandleBallGroundContact(AJGBall* InBall, const FVector& Location)
 {
@@ -575,7 +617,7 @@ void AJGGameModeBase::HandleBallGroundContact(AJGBall* InBall, const FVector& Lo
 		return;
 	}
 
-	// ignore contacts from a round whose point is already decided
+	// 이미 득점이 결정된 라운드의 접촉은 무시한다
 	if (!bPracticeMode && (JGGameState->GetPhase() != EJGMatchPhase::Rally || bPointResolvedThisRound))
 	{
 		return;
@@ -612,7 +654,7 @@ void AJGGameModeBase::ApplyContactResult(const FJGContactResult& Result)
 		return;
 	}
 
-	// net crossing of the deciding shot, to diagnose net faults against the landing judgement
+	// 득점을 결정한 샷의 네트 통과 기록. 착지 판정과 비교해 네트 관련 판정 문제를 진단하는 데 쓴다.
 	FString NetInfo = TEXT("net not crossed");
 	if (Ball && Ball->GetRallyState().bCrossedNet)
 	{
@@ -624,6 +666,7 @@ void AJGGameModeBase::ApplyContactResult(const FJGContactResult& Result)
 		*UEnum::GetDisplayValueAsText(Result.ScoringTeam).ToString(), *UEnum::GetDisplayValueAsText(Result.Reason).ToString(),
 		Ball ? Ball->GetRallyState().ShotId : 0, *NetInfo);
 
+	// 연습 모드는 점수를 올리지 않고 판정 결과만 화면에 띄운다
 	if (bPracticeMode)
 	{
 		if (Ball)
@@ -646,6 +689,10 @@ void AJGGameModeBase::ApplyContactResult(const FJGContactResult& Result)
 
 	AwardPoint(Result.ScoringTeam, Result.Reason);
 }
+
+#pragma endregion
+
+#pragma region 조회 도우미
 
 EJGTeam AJGGameModeBase::FindFreeTeam() const
 {
@@ -749,6 +796,7 @@ UJGCharacterData* AJGGameModeBase::FindCharacterData(FName CharacterId) const
 
 UJGCharacterData* AJGGameModeBase::GetStartingCharacterData(EJGTeam Team) const
 {
+	// 로스터가 비어 있거나 해당 칸이 비었으면 기본 데이터로 시작한다
 	const int32 Index = Team == EJGTeam::B ? 1 : 0;
 	return CharacterRoster.IsValidIndex(Index) && CharacterRoster[Index] ? CharacterRoster[Index].Get() : DefaultCharacterData.Get();
 }
@@ -762,3 +810,5 @@ AJGGameStateBase* AJGGameModeBase::GetJGGameState() const
 {
 	return GetGameState<AJGGameStateBase>();
 }
+
+#pragma endregion

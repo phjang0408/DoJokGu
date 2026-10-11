@@ -43,6 +43,7 @@ AJGBallLauncher::AJGBallLauncher()
 		Preset.Input.AimAngleDeg = Angle;
 	};
 
+	// 약/중/강 동작 구간과 최대 파워를 한 바퀴에 모두 시험한다
 	AddPreset(TEXT("Weak"), EJGAttackType::Drag, 0.2f, 0.0f);
 	AddPreset(TEXT("Medium"), EJGAttackType::Drag, 0.5f, 0.0f);
 	AddPreset(TEXT("Strong"), EJGAttackType::Drag, 0.8f, 0.0f);
@@ -70,6 +71,7 @@ void AJGBallLauncher::LaunchNext()
 	const AJGGameModeBase* GameMode = GetWorld()->GetAuthGameMode<AJGGameModeBase>();
 	const AJGGameStateBase* GameState = GetWorld()->GetGameState<AJGGameStateBase>();
 
+	// 연습 모드가 아니면 경고를 남기고 자동 발사 타이머도 멈춘다
 	if (!GameMode || !GameMode->IsPracticeMode())
 	{
 		UE_LOG(LogDoJokgu, Warning, TEXT("%s only fires in practice mode."), *GetName());
@@ -90,6 +92,7 @@ void AJGBallLauncher::LaunchNext()
 	const EJGTeam HitterTeam = UJGMatchRules::GetOpposingTeam(ReceiverTeam);
 	const FVector Start = GetActorLocation() + FVector(0.0, 0.0, LaunchHeight);
 
+	// 능력치 배율 1, 조준 오차 0으로 플레이어 타격과 같은 계산을 쓴다
 	Ball->HoldAt(Start);
 	const FVector Velocity = UJGShotCalculator::ComputeAttackVelocity(*Court, HitterTeam, Start, Preset.Input, 1.0f, 0.0f, Ball->GetBallGravityZ());
 	Ball->LaunchByHit(Velocity, HitterTeam);

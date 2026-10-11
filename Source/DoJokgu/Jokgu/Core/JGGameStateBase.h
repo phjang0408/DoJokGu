@@ -12,9 +12,9 @@ class AJGGameStateBase;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FJGMatchStateChangedSignature, AJGGameStateBase*, GameState);
 
 /**
- *  Match state everyone must see: scores, phase, serving team, round and phase end time.
- *  The host decides (game mode) and this class distributes. The host broadcasts directly after a change and clients
- *  broadcast from the RepNotify, so UI always goes through the same OnMatchStateChanged path.
+ *  모두가 봐야 하는 경기 상태: 점수, 단계, 서브 팀, 라운드, 단계 종료 시각.
+ *  Host(게임 모드)가 결정하고 이 클래스가 나눠 준다. Host는 변경 직후 직접, 클라이언트는 RepNotify에서
+ *  브로드캐스트하므로 UI는 언제나 같은 OnMatchStateChanged 경로로 갱신된다.
  */
 UCLASS()
 class AJGGameStateBase : public AGameStateBase
@@ -23,10 +23,13 @@ class AJGGameStateBase : public AGameStateBase
 
 public:
 
+	/** 경기 상태가 바뀔 때마다 Host와 클라이언트 모두에서 호출된다 */
 	UPROPERTY(BlueprintAssignable, Category="Match")
 	FJGMatchStateChangedSignature OnMatchStateChanged;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+#pragma region 조회
 
 	UFUNCTION(BlueprintPure, Category="Match")
 	FJGMatchSnapshot GetMatch() const { return Match; }
@@ -40,7 +43,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Match")
 	int32 GetScore(EJGTeam Team) const;
 
-	/** Seconds left in the current phase, 0 if the phase has no time limit */
+	/** 현재 단계의 남은 시간(초). 시간 제한이 없는 단계면 0이다. */
 	UFUNCTION(BlueprintPure, Category="Match")
 	float GetPhaseRemainingSeconds() const;
 
@@ -50,16 +53,24 @@ public:
 	UFUNCTION(BlueprintPure, Category="Match")
 	AJGCourt* GetCourt() const;
 
-	/** Server: registers the level court and the spawned ball */
+#pragma endregion
+
+#pragma region 서버 전용 변경
+
+	/** 서버: 레벨의 코트와 스폰한 공을 등록한다 */
 	void SetCourtAndBall(AJGCourt* InCourt, AJGBall* InBall);
 
-	/** Server: mutable access. Call CommitMatchChanges() once after editing. */
+	/** 서버: 수정용 접근. 수정을 마친 뒤 CommitMatchChanges()를 한 번 호출한다. */
 	FJGMatchSnapshot& EditMatch() { return Match; }
 
-	/** Server: pushes the change to clients and notifies local listeners */
+	/** 서버: 변경을 클라이언트로 보내고 로컬 리스너에 알린다 */
 	void CommitMatchChanges();
 
+#pragma endregion
+
 protected:
+
+#pragma region 복제 상태
 
 	UPROPERTY(ReplicatedUsing=OnRep_Match)
 	FJGMatchSnapshot Match;
@@ -73,6 +84,8 @@ protected:
 	UFUNCTION()
 	void OnRep_Match();
 
-	/** Court found locally while the replicated reference has not arrived yet */
+	/** 복제 참조가 아직 도착하지 않았을 때 로컬에서 찾아 둔 코트 */
 	mutable TWeakObjectPtr<AJGCourt> CachedCourt;
+
+#pragma endregion
 };

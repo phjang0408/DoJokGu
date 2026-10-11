@@ -8,10 +8,13 @@
 #include "Widgets/Input/SVirtualJoystick.h"
 #include "DoJokgu.h"
 
+#pragma region 초기화
+
 void AJGPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Listen Server의 Host에는 원격 플레이어 컨트롤러도 있으므로 로컬 컨트롤러만 UI를 만든다
 	if (!IsLocalPlayerController())
 	{
 		return;
@@ -30,7 +33,7 @@ void AJGPlayerController::BeginPlay()
 		UE_LOG(LogDoJokgu, Error, TEXT("Could not create the match HUD."));
 	}
 
-	// the attack zone also accepts the mouse so drags can be tested on PC
+	// 공격 영역은 마우스 입력도 받아서 PC에서 드래그를 시험할 수 있다
 	bShowMouseCursor = true;
 
 	FInputModeGameAndUI InputMode;
@@ -59,6 +62,7 @@ void AJGPlayerController::SetupInputComponent()
 		}
 	}
 
+	// 재경기는 Pawn이 아니라 컨트롤러에 묶는다
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		if (RematchAction)
@@ -72,6 +76,10 @@ bool AJGPlayerController::ShouldUseTouchControls() const
 {
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
 }
+
+#pragma endregion
+
+#pragma region 경기 요청
 
 void AJGPlayerController::RequestRematch()
 {
@@ -98,3 +106,5 @@ void AJGPlayerController::ServerSelectCharacter_Implementation(FName CharacterId
 		GameMode->HandleCharacterSelect(this, CharacterId);
 	}
 }
+
+#pragma endregion

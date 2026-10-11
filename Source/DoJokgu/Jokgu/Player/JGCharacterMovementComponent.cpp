@@ -3,7 +3,7 @@
 
 FVector UJGCharacterMovementComponent::ConstrainInputAcceleration(const FVector& InputAcceleration) const
 {
-	// slide velocity comes from a root motion source, so zero input does not stop an active slide
+	// 슬라이딩 속도는 RootMotionSource에서 오므로 입력을 0으로 만들어도 진행 중인 슬라이딩은 멈추지 않는다
 	const AJGCharacter* Character = Cast<AJGCharacter>(CharacterOwner);
 	if (Character && !Character->CanMoveNow())
 	{

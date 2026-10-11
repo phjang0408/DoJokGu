@@ -8,13 +8,14 @@ bool UJGRigAnimationLibrary::ConfigureContactMontage(UAnimMontage* Montage, floa
 		return false;
 	}
 	Montage->Modify();
+	// 여러 번 실행해도 Contact 구간이 하나만 남도록 기존 구간을 지운다
 	const int32 Existing = Montage->GetSectionIndex(TEXT("Contact"));
 	if (Existing != INDEX_NONE)
 	{
 		Montage->DeleteAnimCompositeSection(Existing);
 	}
 	Montage->AddAnimCompositeSection(TEXT("Contact"), ContactSeconds);
-	// A server-confirmed hit starts at contact: blending in a windup would visibly lag the ball.
+	// 서버가 확정한 타격은 접촉 순간부터 재생한다: 준비 동작을 블렌드인하면 공보다 눈에 띄게 늦어진다.
 	Montage->BlendIn.SetBlendTime(0.f);
 	Montage->BlendOut.SetBlendTime(0.12f);
 	Montage->MarkPackageDirty();

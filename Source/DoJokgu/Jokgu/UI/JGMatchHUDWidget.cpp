@@ -12,6 +12,8 @@
 #include "Components/TextBlock.h"
 #include "Engine/World.h"
 
+#pragma region 초기화와 기본 레이아웃
+
 void UJGMatchHUDWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -35,7 +37,7 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
 	WidgetTree->RootWidget = RootCanvas;
 
-	// right half: attack gestures (added first so text is drawn above it)
+	// 오른쪽 절반: 공격 제스처 (먼저 추가해서 글자가 그 위에 그려지게 한다)
 	AttackZone = WidgetTree->ConstructWidget<UJGAttackTouchWidget>(UJGAttackTouchWidget::StaticClass(), TEXT("AttackZone"));
 	if (UCanvasPanelSlot* ZoneSlot = RootCanvas->AddChildToCanvas(AttackZone))
 	{
@@ -43,7 +45,7 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 		ZoneSlot->SetOffsets(FMargin(0.0f));
 	}
 
-	// bottom left: movement joystick
+	// 왼쪽 아래: 이동 조이스틱
 	Joystick = WidgetTree->ConstructWidget<UJGVirtualJoystickWidget>(UJGVirtualJoystickWidget::StaticClass(), TEXT("Joystick"));
 	if (UCanvasPanelSlot* JoystickSlot = RootCanvas->AddChildToCanvas(Joystick))
 	{
@@ -53,7 +55,7 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 		JoystickSlot->SetSize(FVector2D(260.0f, 260.0f));
 	}
 
-	// bottom right, over the attack zone: slide button (added after AttackZone so it is hit tested first)
+	// 오른쪽 아래, 공격 영역 위: 슬라이딩 버튼 (AttackZone 뒤에 추가해서 히트 테스트를 먼저 받는다)
 	SlideButton = WidgetTree->ConstructWidget<UJGSlideButtonWidget>(UJGSlideButtonWidget::StaticClass(), TEXT("SlideButton"));
 	if (UCanvasPanelSlot* SlideSlot = RootCanvas->AddChildToCanvas(SlideButton))
 	{
@@ -63,6 +65,7 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 		SlideSlot->SetSize(FVector2D(170.0f, 170.0f));
 	}
 
+	// 가운데 정렬, 그림자, 입력을 막지 않는 글자 하나를 만든다
 	auto MakeText = [this, RootCanvas](const TCHAR* Name, int32 FontSize, const FAnchors& Anchors, const FVector2D& Position)
 	{
 		UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
@@ -89,6 +92,7 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 	PhaseText = MakeText(TEXT("PhaseText"), 24, FAnchors(0.5f, 0.0f), FVector2D(0.0f, 80.0f));
 	MessageText = MakeText(TEXT("MessageText"), 36, FAnchors(0.5f, 0.35f), FVector2D::ZeroVector);
 
+	// 슬라이딩 버튼 위의 글자. SetTouchControlsVisible이 이름으로 찾아 함께 숨긴다.
 	UTextBlock* SlideLabel = MakeText(TEXT("SlideLabel"), 22, FAnchors(1.0f, 1.0f), FVector2D(-145.0f, -160.0f));
 	SlideLabel->SetText(FText::FromString(TEXT("SLIDE")));
 
@@ -130,6 +134,10 @@ void UJGMatchHUDWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+#pragma endregion
+
+#pragma region 경기 상태 표시
+
 void UJGMatchHUDWidget::TryBindGameState()
 {
 	if (BoundGameState.IsValid())
@@ -137,7 +145,7 @@ void UJGMatchHUDWidget::TryBindGameState()
 		return;
 	}
 
-	// on clients the game state may replicate after the HUD is created
+	// 클라이언트에서는 HUD가 만들어진 뒤에 게임 스테이트가 복제될 수 있다
 	AJGGameStateBase* GameState = GetWorld() ? GetWorld()->GetGameState<AJGGameStateBase>() : nullptr;
 	if (!GameState)
 	{
@@ -171,6 +179,7 @@ void UJGMatchHUDWidget::RefreshMatchState_Implementation(AJGGameStateBase* GameS
 		ScoreText->SetText(FText::FromString(FString::Printf(TEXT("%sA  %d : %d  B%s"), *MeA, Match.ScoreA, Match.ScoreB, *MeB)));
 	}
 
+	// 가운데 메시지는 득점 직후와 경기 종료 때만 보이고 나머지 단계에서는 비운다
 	if (MessageText)
 	{
 		FString Message;
@@ -195,12 +204,14 @@ void UJGMatchHUDWidget::RefreshMatchState_Implementation(AJGGameStateBase* GameS
 		MessageText->SetText(FText::FromString(Message));
 	}
 
+	// 재경기는 점수로 끝난 경기에서만 받는다 (상대가 나가면 새 플레이어를 기다림)
 	if (RematchButton)
 	{
 		const bool bShowRematch = Match.Phase == EJGMatchPhase::MatchEnd && Match.EndReason == EJGMatchEndReason::ScoreReached;
 		RematchButton->SetVisibility(bShowRematch ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
+	// 공격할 수 없는 단계로 넘어가면 누르고 있던 드래그를 버린다
 	if (AttackZone && Match.Phase != EJGMatchPhase::Rally && Match.Phase != EJGMatchPhase::Serving)
 	{
 		AttackZone->CancelActiveTouch();
@@ -220,6 +231,7 @@ void UJGMatchHUDWidget::UpdatePhaseText(const AJGGameStateBase& GameState)
 
 	FString Text;
 
+	// 랠리와 득점 직후에는 단계 글자를 비운다
 	switch (Phase)
 	{
 	case EJGMatchPhase::WaitingPlayers:
@@ -252,11 +264,16 @@ void UJGMatchHUDWidget::HandleRematchClicked()
 		PlayerController->RequestRematch();
 	}
 
+	// 같은 요청을 두 번 보내지 않도록 누른 뒤에는 비활성화한다
 	if (RematchButton)
 	{
 		RematchButton->SetIsEnabled(false);
 	}
 }
+
+#pragma endregion
+
+#pragma region 터치 조작과 도우미
 
 void UJGMatchHUDWidget::SetTouchControlsVisible(bool bVisible)
 {
@@ -308,3 +325,5 @@ FString UJGMatchHUDWidget::ReasonName(EJGPointReason Reason)
 	default: return TEXT("");
 	}
 }
+
+#pragma endregion
