@@ -7,7 +7,7 @@
 #include "DoJokguGameMode.generated.h"
 
 /**
- *  Simple GameMode for a third person game
+ *  
  */
 UCLASS(abstract)
 class ADoJokguGameMode : public AGameModeBase

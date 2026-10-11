@@ -27,20 +27,7 @@ public class DoJokgu : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
 		PublicIncludePaths.AddRange(new string[] {
-			"DoJokgu",
-			"DoJokgu/Variant_Platforming",
-			"DoJokgu/Variant_Platforming/Animation",
-			"DoJokgu/Variant_Combat",
-			"DoJokgu/Variant_Combat/AI",
-			"DoJokgu/Variant_Combat/Animation",
-			"DoJokgu/Variant_Combat/Gameplay",
-			"DoJokgu/Variant_Combat/Interfaces",
-			"DoJokgu/Variant_Combat/UI",
-			"DoJokgu/Variant_SideScrolling",
-			"DoJokgu/Variant_SideScrolling/AI",
-			"DoJokgu/Variant_SideScrolling/Gameplay",
-			"DoJokgu/Variant_SideScrolling/Interfaces",
-			"DoJokgu/Variant_SideScrolling/UI"
+			"DoJokgu"
 		});
 
 		// Uncomment if you are using Slate UI
