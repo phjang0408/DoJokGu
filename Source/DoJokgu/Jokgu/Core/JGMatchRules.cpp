@@ -173,3 +173,19 @@ EJGTeam UJGMatchRules::GetMatchWinner(int32 ScoreA, int32 ScoreB, int32 TargetSc
 }
 
 #pragma endregion
+
+#pragma region 대기 단계
+
+bool UJGMatchRules::IsCharacterSelectOpen(EJGMatchPhase Phase, EJGMatchEndReason EndReason)
+{
+	// 점수로 끝난 경기는 같은 캐릭터로 재경기하므로 다시 고르지 않는다
+	return Phase == EJGMatchPhase::WaitingPlayers
+		|| (Phase == EJGMatchPhase::MatchEnd && EndReason == EJGMatchEndReason::PlayerLeft);
+}
+
+bool UJGMatchRules::CanStartMatch(int32 TeamPlayers, int32 ReadyTeamPlayers, int32 RequiredPlayers)
+{
+	return TeamPlayers > 0 && TeamPlayers >= RequiredPlayers && ReadyTeamPlayers >= TeamPlayers;
+}
+
+#pragma endregion

@@ -1,5 +1,6 @@
 #include "Jokgu/Player/JGPlayerController.h"
 #include "Jokgu/Core/JGGameModeBase.h"
+#include "Jokgu/Core/JGSettingsSubsystem.h"
 #include "Jokgu/UI/JGMatchHUDWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -40,6 +41,13 @@ void AJGPlayerController::BeginPlay()
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+	// 지난번에 고른 선수로 시작한다. 로스터에 없거나 선택 단계가 아니면 서버가 무시한다.
+	const UJGSettingsSubsystem* Settings = UJGSettingsSubsystem::Get(this);
+	if (Settings && !Settings->GetLastCharacterId().IsNone())
+	{
+		ServerSelectCharacter(Settings->GetLastCharacterId());
+	}
 }
 
 void AJGPlayerController::SetupInputComponent()
@@ -94,9 +102,38 @@ void AJGPlayerController::ServerRequestRematch_Implementation()
 	}
 }
 
-void AJGPlayerController::JGCharacter(FName CharacterId)
+void AJGPlayerController::RequestSelectCharacter(FName CharacterId)
 {
 	ServerSelectCharacter(CharacterId);
+
+	// 서버가 거절해도 다음 경기에서 다시 시도할 뿐이므로 요청한 값을 그대로 저장한다
+	if (UJGSettingsSubsystem* Settings = UJGSettingsSubsystem::Get(this))
+	{
+		Settings->SetLastCharacterId(CharacterId);
+	}
+}
+
+void AJGPlayerController::RequestSetReady(bool bReady)
+{
+	ServerSetReady(bReady);
+}
+
+void AJGPlayerController::JGCharacter(FName CharacterId)
+{
+	RequestSelectCharacter(CharacterId);
+}
+
+void AJGPlayerController::JGReady(bool bReady)
+{
+	RequestSetReady(bReady);
+}
+
+void AJGPlayerController::ServerSetReady_Implementation(bool bReady)
+{
+	if (AJGGameModeBase* GameMode = GetWorld()->GetAuthGameMode<AJGGameModeBase>())
+	{
+		GameMode->HandleReadyRequest(this, bReady);
+	}
 }
 
 void AJGPlayerController::ServerSelectCharacter_Implementation(FName CharacterId)

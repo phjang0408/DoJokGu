@@ -2,7 +2,9 @@
 #include "Jokgu/UI/JGAttackTouchWidget.h"
 #include "Jokgu/UI/JGVirtualJoystickWidget.h"
 #include "Jokgu/UI/JGSlideButtonWidget.h"
+#include "Jokgu/UI/JGCharacterSelectWidget.h"
 #include "Jokgu/Core/JGGameStateBase.h"
+#include "Jokgu/Online/JGSessionSubsystem.h"
 #include "Jokgu/Core/JGPlayerState.h"
 #include "Jokgu/Player/JGPlayerController.h"
 #include "Blueprint/WidgetTree.h"
@@ -10,6 +12,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
 #pragma region 초기화와 기본 레이아웃
@@ -27,6 +30,18 @@ void UJGMatchHUDWidget::NativeOnInitialized()
 	{
 		RematchButton->OnClicked.AddDynamic(this, &UJGMatchHUDWidget::HandleRematchClicked);
 		RematchButton->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (LobbyButton)
+	{
+		LobbyButton->OnClicked.AddDynamic(this, &UJGMatchHUDWidget::HandleLobbyClicked);
+		LobbyButton->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// 게임 스테이트가 복제되어 첫 갱신이 오기 전까지는 숨겨 둔다
+	if (CharacterSelect)
+	{
+		CharacterSelect->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	SetTouchControlsVisible(bTouchControlsVisible);
@@ -107,6 +122,29 @@ void UJGMatchHUDWidget::BuildDefaultLayout()
 		ButtonSlot->SetAnchors(FAnchors(0.5f, 0.55f));
 		ButtonSlot->SetAlignment(FVector2D(0.5f, 0.5f));
 		ButtonSlot->SetAutoSize(true);
+	}
+
+	// 왼쪽 위: 로비로 돌아가기 (대기 단계와 결과 화면)
+	LobbyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyButton"));
+	UTextBlock* LobbyLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyLabel"));
+	LobbyLabel->SetText(FText::FromString(TEXT("  Lobby  ")));
+	LobbyLabel->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+	LobbyButton->AddChild(LobbyLabel);
+
+	if (UCanvasPanelSlot* LobbySlot = RootCanvas->AddChildToCanvas(LobbyButton))
+	{
+		LobbySlot->SetAnchors(FAnchors(0.0f, 0.0f));
+		LobbySlot->SetPosition(FVector2D(30.0f, 30.0f));
+		LobbySlot->SetAutoSize(true);
+	}
+
+	// 가운데 아래: 대기 단계 선택 화면. 공격 영역보다 뒤에 추가해서 터치를 먼저 받는다.
+	CharacterSelect = WidgetTree->ConstructWidget<UJGCharacterSelectWidget>(UJGCharacterSelectWidget::StaticClass(), TEXT("CharacterSelect"));
+	if (UCanvasPanelSlot* SelectSlot = RootCanvas->AddChildToCanvas(CharacterSelect))
+	{
+		SelectSlot->SetAnchors(FAnchors(0.5f, 0.62f));
+		SelectSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+		SelectSlot->SetAutoSize(true);
 	}
 }
 
@@ -209,6 +247,24 @@ void UJGMatchHUDWidget::RefreshMatchState_Implementation(AJGGameStateBase* GameS
 	{
 		const bool bShowRematch = Match.Phase == EJGMatchPhase::MatchEnd && Match.EndReason == EJGMatchEndReason::ScoreReached;
 		RematchButton->SetVisibility(bShowRematch ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+
+		// 누른 뒤 비활성화한 버튼을 다음 경기 결과 화면에서 다시 쓸 수 있게 한다
+		if (Match.Phase != EJGMatchPhase::MatchEnd)
+		{
+			RematchButton->SetIsEnabled(true);
+		}
+	}
+
+	if (CharacterSelect)
+	{
+		CharacterSelect->SetVisibility(GameState->IsCharacterSelectOpen() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+
+	// 경기 도중에는 실수로 누르지 않도록 숨긴다
+	if (LobbyButton)
+	{
+		const bool bShowLobby = GameState->IsCharacterSelectOpen() || Match.Phase == EJGMatchPhase::MatchEnd;
+		LobbyButton->SetVisibility(bShowLobby ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	// 공격할 수 없는 단계로 넘어가면 누르고 있던 드래그를 버린다
@@ -235,7 +291,7 @@ void UJGMatchHUDWidget::UpdatePhaseText(const AJGGameStateBase& GameState)
 	switch (Phase)
 	{
 	case EJGMatchPhase::WaitingPlayers:
-		Text = TEXT("Waiting for opponent...");
+		Text = TEXT("Pick a player and press Ready");
 		break;
 
 	case EJGMatchPhase::PreparingServe:
@@ -268,6 +324,20 @@ void UJGMatchHUDWidget::HandleRematchClicked()
 	if (RematchButton)
 	{
 		RematchButton->SetIsEnabled(false);
+	}
+}
+
+void UJGMatchHUDWidget::HandleLobbyClicked()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	if (UJGSessionSubsystem* Sessions = GameInstance ? GameInstance->GetSubsystem<UJGSessionSubsystem>() : nullptr)
+	{
+		Sessions->LeaveToLobby();
+	}
+
+	if (LobbyButton)
+	{
+		LobbyButton->SetIsEnabled(false);
 	}
 }
 

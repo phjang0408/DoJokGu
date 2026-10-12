@@ -1,5 +1,5 @@
 #include "Jokgu/UI/JGVirtualJoystickWidget.h"
-#include "Jokgu/Player/JGCharacter.h"
+#include "Jokgu/Player/JGStickMovable.h"
 #include "Misc/CoreDelegates.h"
 #include "Rendering/DrawElements.h"
 
@@ -36,10 +36,11 @@ void UJGVirtualJoystickWidget::NativeTick(const FGeometry& MyGeometry, float InD
 		return;
 	}
 
-	if (AJGCharacter* Character = GetOwningPlayerPawn<AJGCharacter>())
+	// 경기 캐릭터와 로비 캐릭터 모두 같은 인터페이스로 받는다
+	if (IJGStickMovable* Movable = Cast<IJGStickMovable>(GetOwningPlayerPawn()))
 	{
 		// 화면 위쪽이 앞쪽이다
-		Character->DoMove(StickValue.X, -StickValue.Y);
+		Movable->DoStickMove(StickValue.X, -StickValue.Y);
 	}
 }
 

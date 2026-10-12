@@ -9,7 +9,7 @@ class AJGCharacter;
 
 /**
  *  왼손 이동 스틱. 공격 영역과 따로 자기 포인터를 추적해서 두 손을 동시에 쓸 수 있고,
- *  매 프레임 스틱 값을 AJGCharacter::DoMove로 넘긴다.
+ *  매 프레임 스틱 값을 IJGStickMovable::DoStickMove로 넘긴다(경기·로비 캐릭터).
  */
 UCLASS()
 class UJGVirtualJoystickWidget : public UUserWidget

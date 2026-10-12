@@ -48,9 +48,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Match")
 	void RequestRematch();
 
-	/** 선택 화면이 생기기 전까지 쓰는 테스트 명령. 예: "JGCharacter LeeMinji" */
+	/** 대기 단계에서 선수를 고른다. 서버가 로스터와 단계를 확인하고, 고른 값은 기기에 저장한다. */
+	UFUNCTION(BlueprintCallable, Category="Characters")
+	void RequestSelectCharacter(FName CharacterId);
+
+	/** 대기 단계의 준비 표시를 켜거나 끈다. 두 사람이 모두 준비하면 경기가 시작된다. */
+	UFUNCTION(BlueprintCallable, Category="Match")
+	void RequestSetReady(bool bReady);
+
+	/** 콘솔 테스트 명령. 예: "JGCharacter LeeMinji" */
 	UFUNCTION(Exec, BlueprintCallable, Category="Characters")
 	void JGCharacter(FName CharacterId);
+
+	/** 콘솔 테스트 명령: 준비 표시를 바꾼다 */
+	UFUNCTION(Exec, Category="Match")
+	void JGReady(bool bReady);
 
 	/** 터치 인터페이스를 써야 하는 기기이거나 bForceTouchControls가 켜져 있으면 true */
 	UFUNCTION(BlueprintPure, Category="UI")
@@ -73,6 +85,9 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerSelectCharacter(FName CharacterId);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetReady(bool bReady);
 
 #pragma endregion
 };

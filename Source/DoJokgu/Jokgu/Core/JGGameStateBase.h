@@ -8,6 +8,7 @@
 class AJGBall;
 class AJGCourt;
 class AJGGameStateBase;
+class UJGCharacterData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FJGMatchStateChangedSignature, AJGGameStateBase*, GameState);
 
@@ -53,6 +54,16 @@ public:
 	UFUNCTION(BlueprintPure, Category="Match")
 	AJGCourt* GetCourt() const;
 
+	/** 지금 캐릭터를 고르고 준비할 수 있으면 true (UJGMatchRules::IsCharacterSelectOpen) */
+	UFUNCTION(BlueprintPure, Category="Match")
+	bool IsCharacterSelectOpen() const;
+
+	/** 선택 화면이 보여 줄 로스터. 게임 모드는 서버에만 있으므로 여기서 복제한다. */
+	const TArray<TObjectPtr<UJGCharacterData>>& GetCharacterRoster() const { return CharacterRoster; }
+
+	/** 로스터에서 ID로 찾는다. 없으면 nullptr. */
+	UJGCharacterData* FindRosterCharacter(FName CharacterId) const;
+
 #pragma endregion
 
 #pragma region 서버 전용 변경
@@ -65,6 +76,9 @@ public:
 
 	/** 서버: 변경을 클라이언트로 보내고 로컬 리스너에 알린다 */
 	void CommitMatchChanges();
+
+	/** 서버: 게임 모드의 로스터를 복제 목록에 넣는다 */
+	void SetCharacterRoster(const TArray<TObjectPtr<UJGCharacterData>>& InRoster);
 
 #pragma endregion
 
@@ -80,6 +94,10 @@ protected:
 
 	UPROPERTY(Replicated)
 	TObjectPtr<AJGCourt> Court;
+
+	/** 데이터 에셋은 이름이 고정된 에셋이라 참조 그대로 복제된다 */
+	UPROPERTY(Replicated)
+	TArray<TObjectPtr<UJGCharacterData>> CharacterRoster;
 
 	UFUNCTION()
 	void OnRep_Match();

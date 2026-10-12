@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "warnings": [],
+  "lobby_removed": {
+    "court": 1,
+    "crowd": 7,
+    "player_start": 1
+  },
+  "spawn": {
+    "location": [
+      3000.0,
+      0.0,
+      80
+    ],
+    "floor": "SM_ENC_SchoolTerrace_001"
+  },
+  "zones": [
+    {
+      "kind": "Match",
+      "location": [
+        0.0,
+        -700.0,
+        -1
+      ],
+      "floor": "SM_DJG_Ground_002"
+    },
+    {
+      "kind": "Settings",
+      "location": [
+        1058,
+        3139,
+        -3
+      ],
+      "floor": "SM_ENC_SchoolPlot_001",
+      "hall_center": [
+        1058,
+        4300
+      ]
+    }
+  ],
+  "walls": 4,
+  "verified": {
+    "/Game/Jokgu/Maps/L_Campus_Match": "BP_JGGameMode_C",
+    "/Game/Jokgu/Maps/L_Campus_Lobby": "BP_JGLobbyGameMode_C"
+  }
+}

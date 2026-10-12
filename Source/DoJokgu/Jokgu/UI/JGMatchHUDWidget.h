@@ -11,9 +11,10 @@ class AJGGameStateBase;
 class UJGAttackTouchWidget;
 class UJGVirtualJoystickWidget;
 class UJGSlideButtonWidget;
+class UJGCharacterSelectWidget;
 
 /**
- *  경기 HUD: 점수, 단계·카운트다운, 득점 사유, 결과와 재경기, 조이스틱, 슬라이딩 버튼, 공격 영역.
+ *  경기 HUD: 점수, 단계·카운트다운, 득점 사유, 결과와 재경기, 대기 단계 선택 화면, 조이스틱, 슬라이딩 버튼, 공격 영역.
  *  위젯 트리가 비어 있으면(C++ 클래스 그대로이거나 빈 WBP) 기본 임시 레이아웃을 코드로 만든다.
  *  자식 WBP는 아래 BindWidgetOptional 프로퍼티와 같은 이름의 위젯을 두어 자체 레이아웃을 쓸 수 있다.
  */
@@ -43,6 +44,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="HUD", meta=(BindWidgetOptional))
 	TObjectPtr<UButton> RematchButton;
 
+	/** 대기 단계와 결과 화면에서 보인다. 세션을 닫고 로비 맵으로 돌아간다. */
+	UPROPERTY(BlueprintReadOnly, Category="HUD", meta=(BindWidgetOptional))
+	TObjectPtr<UButton> LobbyButton;
+
+	/** 대기 단계(상대가 나간 뒤 포함)에만 보인다 */
+	UPROPERTY(BlueprintReadOnly, Category="HUD", meta=(BindWidgetOptional))
+	TObjectPtr<UJGCharacterSelectWidget> CharacterSelect;
+
 	UPROPERTY(BlueprintReadOnly, Category="HUD", meta=(BindWidgetOptional))
 	TObjectPtr<UJGAttackTouchWidget> AttackZone;
 
@@ -70,6 +79,9 @@ protected:
 
 	UFUNCTION()
 	void HandleRematchClicked();
+
+	UFUNCTION()
+	void HandleLobbyClicked();
 
 	void BuildDefaultLayout();
 

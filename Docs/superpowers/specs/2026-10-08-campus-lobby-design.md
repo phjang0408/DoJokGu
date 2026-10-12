@@ -1,6 +1,6 @@
 # 학교 로비·맵 정리·환경 연출 설계
 
-2026-10-08 작성. 상태: **1~2절 승인. 3~5절은 2026-10-08 검토를 반영했고, 4절 맵 정리 방식은 승인됨.** Blender 새 배치를 Unreal로 옮기고 충돌·지형 재질까지 적용했다(4.2절). PIE 보행 확인이 다음 단계다.
+2026-10-08 작성. 상태: **1~2절 승인. 3~5절은 2026-10-08 검토를 반영했고, 4절 맵 정리 방식은 승인됨.** Blender 새 배치를 Unreal로 옮기고 충돌·지형 재질까지 적용했다(4.2절). 10/12에 로비·경기 맵, 대기 단계, 설정, LAN 방 흐름을 구현했다(4.3절). 2절의 Level Instance 대신 복사 방식을 썼다(4.3절 첫 항목).
 
 ## 1. 목표와 결정 사항
 
@@ -102,7 +102,23 @@ Blender에서 길 모듈, 놀이터, 축제 부스, 대문, 자판기·음수대
 9. 지형 정점 색: 가져온 재질은 GLB 정점 색을 쓰지 않는다. 정리 스크립트의 `materials` 항목이 `/Game/Jokgu/Environment/Materials/M_JG_TerrainVertexColor`(VertexColor → Base Color, 거칠기 0.95, **Nanite 사용 플래그 켬**)를 만들고 지형에 지정한다. 배경 메시가 Nanite라 이 플래그가 없으면 쿡 빌드에서 기본 재질로 그려진다. 화면에서 초록 그라데이션 확인
 10. 충돌 적용: `cleanup_campus_level.py` 실행 결과 걷는 바닥 500, 담장 안 막는 물체 159, 메시 349종. 위에서 쏜 검사선이 네트·그네 틀·부스 지붕·체육관 지붕·바닥에 맞음. 공 채널의 Python 이름은 `ECC_JG_BALL`
 
+11. (10/12) 보도 충돌 이상: `SM_ENC_PublicSidewalks`·`SM_ENC_PublicSidewalksJoints`가 바닥 목록에 없어 충돌 켜짐 + 메시 `CTF_UseDefault`(단순 모양 없음, 캐릭터 통과) + 밟고 올라서기 No 상태였다. 바닥 목록에 추가
+12. (10/12) 배경 전체 충돌: 에디터에서 보니 StaticMeshActor 1,981개가 모두 `QueryAndPhysics`(프로필 Custom, 응답 설정 없음)였다. 빌드의 `set_collision_enabled(NO_COLLISION)`만으로는 저장 후 유지되지 않았다. 정리 스크립트가 목록 밖 액터를 프로필 `NoCollision`으로 바꾸도록 수정(빌드 스크립트도 같은 방식). 실행 결과 바닥 502, 막는 물체 159, 충돌 없음 1,263, 다시 연 에디터에서 유지 확인
+13. (10/12) 삭제 적용: 분석 보고서의 안 보이는 물체 53개와 겹친 나무 4그루(5쌍 중 하나는 안 보이는 목록과 겹침). 삭제 전 에디터에서 57개 모두 같은 라벨·위치(30cm 이내) 확인. 배경 1,981 → 1,924개
+
 다음: PIE로 걸어 보며 바닥 빠짐·통과·경계석 걸림 확인 → 벤치 방향·소품 등 개별 편집은 새 배치를 보고 다시 정한다(가능하면 Blender에서).
+
+### 4.3 로비·경기 맵 구현 (2026-10-12)
+
+| 항목 | 내용 |
+| --- | --- |
+| 맵 구조 (2절과 다름) | `LI_Campus` Level Instance 대신 `build_lobby_maps.py`가 정리된 `L_CampusEnclosed`를 `L_Campus_Match`(GameMode `BP_JGGameMode`)와 `L_Campus_Lobby`(GameMode `BP_JGLobbyGameMode`)로 복사한다. `rebuild_campus.py`가 빌드 → 정리 → 복사를 차례로 하므로 배경 편집은 두 맵에 함께 들어간다. Level Instance 안 액터의 복제·코트 찾기를 따로 검증하지 않아도 된다. 대신 맵 파일이 둘(각 약 5MB)이다. 나중에 Level Instance로 바꿀 수 있다 |
+| 로비 맵 | 코트·관중·경기 PlayerStart를 지우고, 본관 앞 평평한 바닥을 찾아 `PlayerStart_Lobby`(지금은 본관 앞 테라스 x 3000), 코트 옆 `Zone_Match`(0, -700), 학생회관 앞 `Zone_Settings`, 담장 선(`collision.site_cm`)에 높이 6m 보이지 않는 벽 4개(Pawn만 막고 카메라·Visibility·공 채널 무시)를 둔다. 보고서 `Reports/lobby_maps_report.json` |
+| 로비 카메라 | 배경 충돌이 Camera 채널을 무시하므로 스프링 암은 Visibility 채널로 벽을 감지한다 |
+| 대기 단계 | 3절 계획대로 `WaitingPlayers`와 `CharacterId`·`bReady` 사용. 규칙은 `UJGMatchRules::IsCharacterSelectOpen`·`CanStartMatch`(자동 테스트 `Jokgu.Rules.WaitingRoom`) |
+| 방 찾기 | OnlineSubsystemNull LAN 세션. 상대 1명 자리, 꽉 찬 방은 목록에서 뺀다. 한 프로세스 PIE 두 개로는 발견을 확인하지 못했다 |
+| 설정 | `SMix_Volume` + `SC_Master`(자식 `SC_Effects`, `SC_Music`). 새 소리 에셋은 효과음이면 `SC_Effects`, 배경음이면 `SC_Music`을 지정해야 볼륨이 먹는다 |
+| 아직 | AI 학생, 로비 스폰 위치 다듬기, 실제 기기 LAN 확인, 5절 환경 연출 |
 
 ### 4.1 진행 상황 (2026-10-08)
 

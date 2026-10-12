@@ -185,6 +185,8 @@ def strip_collision(actors):
     count = 0
     for actor in actors:
         for component in actor.get_components_by_class(unreal.PrimitiveComponent):
+            # set_collision_enabled alone did not survive the save; the profile name does
+            component.set_collision_profile_name("NoCollision")
             component.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
             component.set_editor_property("can_character_step_up_on", unreal.CanBeCharacterBase.ECB_NO)
             count += 1

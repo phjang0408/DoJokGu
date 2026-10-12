@@ -71,4 +71,16 @@ public:
 	static EJGTeam GetMatchWinner(int32 ScoreA, int32 ScoreB, int32 TargetScore, int32 WinMargin);
 
 #pragma endregion
+
+#pragma region 대기 단계
+
+	/** 캐릭터를 고르고 준비할 수 있는 단계면 true: 대기 중, 또는 상대가 나가서 끝난 경기 */
+	UFUNCTION(BlueprintPure, Category="Jokgu|Rules")
+	static bool IsCharacterSelectOpen(EJGMatchPhase Phase, EJGMatchEndReason EndReason);
+
+	/** 팀에 든 인원이 필요한 수 이상이고 그 모두가 준비했으면 true */
+	UFUNCTION(BlueprintPure, Category="Jokgu|Rules")
+	static bool CanStartMatch(int32 TeamPlayers, int32 ReadyTeamPlayers, int32 RequiredPlayers);
+
+#pragma endregion
 };

@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "created": [
+    "/Game/Jokgu/Audio/SC_Master",
+    "/Game/Jokgu/Audio/SC_Effects",
+    "/Game/Jokgu/Audio/SC_Music",
+    "/Game/Jokgu/Audio/SMix_Volume",
+    "/Game/Jokgu/Lobby/BP_JGLobbyCharacter",
+    "/Game/Jokgu/Lobby/BP_JGLobbyPlayerController",
+    "/Game/Jokgu/Lobby/BP_JGLobbyGameMode"
+  ],
+  "updated": [],
+  "lobby_roster": 5
+}

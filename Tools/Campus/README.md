@@ -6,10 +6,12 @@
 | --- | --- |
 | `build_campus_level.py` | 빈 맵 + 조명·코트·GameMode, GLB 장면 가져오기, 코트 선·네트 맞춤, 배경 충돌 제거, 관중 배치 |
 | `cleanup_campus_level.py` | `campus_edits.json` 적용: 삭제, 이동·회전·크기, 소품 추가, 담장 안 충돌 |
-| `rebuild_campus.py` | 위 두 단계를 차례로 실행하는 commandlet 진입점 |
+| `build_lobby_maps.py` | 정리된 맵을 `L_Campus_Match`·`L_Campus_Lobby`로 복사하고 로비 구성(스폰, 구역, 경계 벽)을 넣는다 |
+| `setup_lobby_assets.py` | 소리 클래스·믹스와 로비 블루프린트 3개를 만든다(한 번만, 다시 실행해도 안전) |
+| `rebuild_campus.py` | 빌드 → 정리 → 로비·경기 맵 복사를 차례로 실행하는 commandlet 진입점 |
 | `analyze_campus.py` | Blender에서 GLB를 불러와 안 보이는 객체와 2.5m 미만 나무 쌍을 찾는다. 편집하지 않고 보고서만 쓴다 |
 | `campus_edits.json` | 정리 편집 목록. 라벨 = GLB 노드 이름의 `.`을 `_`로 바꾼 것 |
-| `Reports/` | `analysis_report.json`, `build_report.json`, `cleanup_report.json` |
+| `Reports/` | `analysis_report.json`, `build_report.json`, `cleanup_report.json`, `lobby_maps_report.json`, `lobby_assets_report.json` |
 
 > 주의: `campus_edits.json`은 10/8 16:02 export GLB 기준이다(개별 편집은 비어 있고 충돌 목록만 있다). Blender에서 물체를 추가·삭제하고 다시 export하면 라벨 번호가 밀려 개별 편집이 다른 물체에 적용될 수 있다. 다시 export한 뒤에는 분석부터 다시 하고 목록을 갱신한다(설계 문서 4.1절).
 
@@ -37,4 +39,4 @@ GLB 내보내기 (Blender 원본을 저장한 뒤, 명령줄에서). Blender Scr
   "-EnablePlugins=PythonScriptPlugin,EditorScriptingUtilities" -unattended -nullrhi -nosound -DDC-ForceMemoryCache
 ```
 
-성공 여부는 종료 코드가 아니라 두 보고서의 `success`로 확인한다.
+성공 여부는 종료 코드가 아니라 보고서들의 `success`로 확인한다. 로비 블루프린트가 없으면 먼저 `setup_lobby_assets.py`를 같은 방식으로 한 번 실행한다.

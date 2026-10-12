@@ -235,4 +235,29 @@ bool FJGShotCalculatorTest::RunTest(const FString& Parameters)
 
 #pragma endregion
 
+#pragma region 대기 단계
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJGRulesWaitingRoomTest, "Jokgu.Rules.WaitingRoom",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FJGRulesWaitingRoomTest::RunTest(const FString& Parameters)
+{
+	// 선택 화면은 대기 중과 상대가 나가서 끝난 경기에서만 열린다
+	TestTrue(TEXT("waiting is open"), UJGMatchRules::IsCharacterSelectOpen(EJGMatchPhase::WaitingPlayers, EJGMatchEndReason::None));
+	TestTrue(TEXT("opponent left is open"), UJGMatchRules::IsCharacterSelectOpen(EJGMatchPhase::MatchEnd, EJGMatchEndReason::PlayerLeft));
+	TestFalse(TEXT("score end is closed (rematch keeps picks)"), UJGMatchRules::IsCharacterSelectOpen(EJGMatchPhase::MatchEnd, EJGMatchEndReason::ScoreReached));
+	TestFalse(TEXT("rally is closed"), UJGMatchRules::IsCharacterSelectOpen(EJGMatchPhase::Rally, EJGMatchEndReason::None));
+
+	// 필요한 인원이 모두 준비해야 시작한다
+	TestTrue(TEXT("2 of 2 ready starts"), UJGMatchRules::CanStartMatch(2, 2, 2));
+	TestFalse(TEXT("1 of 2 ready waits"), UJGMatchRules::CanStartMatch(2, 1, 2));
+	TestFalse(TEXT("alone and ready waits for an opponent"), UJGMatchRules::CanStartMatch(1, 1, 2));
+	TestTrue(TEXT("solo match starts once ready"), UJGMatchRules::CanStartMatch(1, 1, 1));
+	TestFalse(TEXT("solo match waits until ready"), UJGMatchRules::CanStartMatch(1, 0, 1));
+	TestFalse(TEXT("nobody never starts"), UJGMatchRules::CanStartMatch(0, 0, 1));
+	return true;
+}
+
+#pragma endregion
+
 #endif

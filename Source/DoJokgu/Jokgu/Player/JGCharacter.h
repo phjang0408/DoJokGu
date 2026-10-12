@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Jokgu/Core/JGTypes.h"
+#include "Jokgu/Player/JGStickMovable.h"
 #include "JGCharacter.generated.h"
 
 class UCameraComponent;
@@ -18,7 +19,7 @@ struct FInputActionValue;
  *  타격은 서버가 결정한다: 공에 대한 거리·높이 검사 후 공에 새 속도를 준다.
  */
 UCLASS()
-class AJGCharacter : public ACharacter
+class AJGCharacter : public ACharacter, public IJGStickMovable
 {
 	GENERATED_BODY()
 
@@ -76,6 +77,9 @@ public:
 	/** 경기 카메라 기준 이동. Right/Forward는 [-1, 1]. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoMove(float Right, float Forward);
+
+	/** 가상 조이스틱 입력. DoMove와 같다. */
+	virtual void DoStickMove(float Right, float Forward) override { DoMove(Right, Forward); }
 
 	/** 마지막 유효 이동 방향으로 슬라이딩을 시작한다(움직인 적이 없으면 상대 쪽으로) */
 	UFUNCTION(BlueprintCallable, Category="Input")

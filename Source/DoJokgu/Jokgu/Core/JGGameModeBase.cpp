@@ -53,6 +53,9 @@ void AJGGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* 
 		{
 			PlayerState->SetCharacterId(StartingData->CharacterId);
 		}
+
+		// 준비는 이 경기 맵의 대기 단계에서 새로 받는다
+		PlayerState->SetReady(false);
 	}
 
 	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
@@ -119,6 +122,16 @@ void AJGGameModeBase::Logout(AController* Exiting)
 	if (CountTeamPlayers(Exiting) < GetRequiredPlayers())
 	{
 		EndMatch(EJGMatchEndReason::PlayerLeft, EJGTeam::None);
+	}
+}
+
+void AJGGameModeBase::InitGameState()
+{
+	Super::InitGameState();
+
+	if (AJGGameStateBase* JGGameState = GetJGGameState())
+	{
+		JGGameState->SetCharacterRoster(CharacterRoster);
 	}
 }
 
@@ -198,12 +211,9 @@ void AJGGameModeBase::TryStartMatch()
 		return;
 	}
 
-	// 상대가 나가서 끝난 경기는 새 플레이어가 오면 새 경기로 시작한다
-	const FJGMatchSnapshot Match = JGGameState->GetMatch();
-	const bool bCanStart = Match.Phase == EJGMatchPhase::WaitingPlayers
-		|| (Match.Phase == EJGMatchPhase::MatchEnd && Match.EndReason == EJGMatchEndReason::PlayerLeft);
-
-	if (bCanStart && CountTeamPlayers() >= GetRequiredPlayers())
+	// 상대가 나가서 끝난 경기도 대기 단계처럼 새 플레이어와 함께 다시 고르고 준비한다
+	if (JGGameState->IsCharacterSelectOpen()
+		&& UJGMatchRules::CanStartMatch(CountTeamPlayers(), CountTeamPlayers(nullptr, true), GetRequiredPlayers()))
 	{
 		StartNewMatch();
 	}
@@ -387,6 +397,12 @@ void AJGGameModeBase::EndMatch(EJGMatchEndReason Reason, EJGTeam Winner)
 		{
 			JGPlayerState->SetWantsRematch(false);
 		}
+	}
+
+	// 남은 플레이어는 새 상대가 올 때까지 캐릭터를 다시 고를 수 있다
+	if (Reason == EJGMatchEndReason::PlayerLeft)
+	{
+		ClearReadyFlags();
 	}
 
 	UE_LOG(LogDoJokgu, Log, TEXT("Match end: %s, winner %s"), *UEnum::GetValueAsString(Reason), *UEnum::GetValueAsString(Winner));
@@ -596,6 +612,15 @@ void AJGGameModeBase::HandleCharacterSelect(APlayerController* Requester, FName 
 		return;
 	}
 
+	// 경기 중 교체는 연습 모드에서만 받는다. 준비를 누른 뒤에는 상대가 본 선택을 바꾸지 않는다.
+	const AJGGameStateBase* JGGameState = GetJGGameState();
+	const bool bSelectOpen = JGGameState && JGGameState->IsCharacterSelectOpen();
+	if (!bPracticeMode && (!bSelectOpen || PlayerState->IsReady()))
+	{
+		UE_LOG(LogDoJokgu, Verbose, TEXT("Character select ignored: not in the waiting phase or already ready"));
+		return;
+	}
+
 	PlayerState->SetCharacterId(CharacterId);
 
 	// 이미 스폰된 캐릭터에도 바로 적용한다
@@ -603,6 +628,24 @@ void AJGGameModeBase::HandleCharacterSelect(APlayerController* Requester, FName 
 	{
 		Character->SetCharacterData(FindCharacterData(CharacterId));
 	}
+}
+
+void AJGGameModeBase::HandleReadyRequest(APlayerController* Requester, bool bReady)
+{
+	AJGPlayerState* PlayerState = Requester ? Requester->GetPlayerState<AJGPlayerState>() : nullptr;
+	const AJGGameStateBase* JGGameState = GetJGGameState();
+
+	if (bPracticeMode || !PlayerState || PlayerState->GetTeam() == EJGTeam::None || !JGGameState || !JGGameState->IsCharacterSelectOpen())
+	{
+		return;
+	}
+
+	PlayerState->SetReady(bReady);
+
+	UE_LOG(LogDoJokgu, Log, TEXT("%s is %s (%s)"), *PlayerState->GetPlayerName(), bReady ? TEXT("ready") : TEXT("not ready"),
+		*PlayerState->GetCharacterId().ToString());
+
+	TryStartMatch();
 }
 
 #pragma endregion
@@ -722,7 +765,7 @@ EJGTeam AJGGameModeBase::FindFreeTeam() const
 	return bBTaken ? EJGTeam::None : EJGTeam::B;
 }
 
-int32 AJGGameModeBase::CountTeamPlayers(const AController* Ignore) const
+int32 AJGGameModeBase::CountTeamPlayers(const AController* Ignore, bool bReadyOnly) const
 {
 	const AJGGameStateBase* JGGameState = GetJGGameState();
 	if (!JGGameState)
@@ -736,13 +779,28 @@ int32 AJGGameModeBase::CountTeamPlayers(const AController* Ignore) const
 	for (const APlayerState* PlayerState : JGGameState->PlayerArray)
 	{
 		const AJGPlayerState* JGPlayerState = Cast<AJGPlayerState>(PlayerState);
-		if (JGPlayerState && JGPlayerState != IgnoredState && JGPlayerState->GetTeam() != EJGTeam::None)
+		if (JGPlayerState && JGPlayerState != IgnoredState && JGPlayerState->GetTeam() != EJGTeam::None
+			&& (!bReadyOnly || JGPlayerState->IsReady()))
 		{
 			++Count;
 		}
 	}
 
 	return Count;
+}
+
+void AJGGameModeBase::ClearReadyFlags()
+{
+	if (const AJGGameStateBase* JGGameState = GetJGGameState())
+	{
+		for (APlayerState* PlayerState : JGGameState->PlayerArray)
+		{
+			if (AJGPlayerState* JGPlayerState = Cast<AJGPlayerState>(PlayerState))
+			{
+				JGPlayerState->SetReady(false);
+			}
+		}
+	}
 }
 
 bool AJGGameModeBase::HasPlayerOnTeam(EJGTeam Team) const

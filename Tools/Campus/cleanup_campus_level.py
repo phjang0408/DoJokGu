@@ -8,7 +8,8 @@ Actors are found by label (GLB node name with "." -> "_"). Edits:
 - materials: material overrides by mesh base name; a missing vertex-color material is created
   (the terrain's height tint is GLB vertex colour, which the imported material ignores)
 - collision: mesh base names (label == base or base_<n>) for walkable floors and blockers inside the wall. Pawns collide; the
-  JGBall channel and the camera channel are ignored so the ball and match camera are unaffected.
+  JGBall channel and the camera channel are ignored so the ball and match camera are unaffected. Every other
+  StaticMeshActor (trees, outside buildings, blockers outside the wall) is set to NoCollision.
 Writes Tools/Campus/Reports/cleanup_report.json.
 """
 import json
@@ -175,21 +176,30 @@ def make_collidable(actor, walkable, meshes):
                                   unreal.CanBeCharacterBase.ECB_YES if walkable else unreal.CanBeCharacterBase.ECB_NO)
 
 
+def make_uncollidable(actor):
+    component = actor.static_mesh_component
+    # the profile name is what survives a save; set_collision_enabled alone left 1,981 actors at QueryAndPhysics (10/12)
+    component.set_collision_profile_name("NoCollision")
+    component.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+    component.set_editor_property("can_character_step_up_on", unreal.CanBeCharacterBase.ECB_NO)
+
+
 def apply_collision(edits, actors):
     rules = edits.get("collision", {})
     site = rules.get("site_cm")
     require(site and len(site) == 4, "collision.site_cm must be [x min, x max, y min, y max]")
-    meshes, counts = {}, {"walk": 0, "block": 0}
+    meshes, counts = {}, {"walk": 0, "block": 0, "none": 0}
     for name, actor in actors.items():
         if not isinstance(actor, unreal.StaticMeshActor):
             continue
-        for kind in ("walk", "block"):
-            if matches(name, rules.get(kind, [])):
-                # floors may extend past the wall (terrain, plazas); blockers only matter inside it
-                if kind == "walk" or inside(actor, site):
-                    make_collidable(actor, kind == "walk", meshes)
-                    counts[kind] += 1
-                break
+        kind = next((k for k in ("walk", "block") if matches(name, rules.get(k, []))), None)
+        # floors may extend past the wall (terrain, plazas); blockers only matter inside it
+        if kind == "walk" or (kind == "block" and inside(actor, site)):
+            make_collidable(actor, kind == "walk", meshes)
+            counts[kind] += 1
+        else:
+            make_uncollidable(actor)
+            counts["none"] += 1
     for mesh in meshes.values():
         require(EAL.save_loaded_asset(mesh, False), "Could not save " + mesh.get_path_name())
     RESULT["collision"] = dict(counts, meshes=len(meshes))

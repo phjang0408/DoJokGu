@@ -1,4 +1,6 @@
 #include "Jokgu/Core/JGGameStateBase.h"
+#include "Jokgu/Core/JGMatchRules.h"
+#include "Jokgu/Data/JGCharacterData.h"
 #include "Jokgu/Gameplay/JGBall.h"
 #include "Jokgu/Gameplay/JGCourt.h"
 #include "Net/UnrealNetwork.h"
@@ -11,6 +13,7 @@ void AJGGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(AJGGameStateBase, Match);
 	DOREPLIFETIME(AJGGameStateBase, Ball);
 	DOREPLIFETIME(AJGGameStateBase, Court);
+	DOREPLIFETIME(AJGGameStateBase, CharacterRoster);
 }
 
 #pragma region 조회
@@ -56,6 +59,24 @@ AJGCourt* AJGGameStateBase::GetCourt() const
 	return CachedCourt.Get();
 }
 
+bool AJGGameStateBase::IsCharacterSelectOpen() const
+{
+	return UJGMatchRules::IsCharacterSelectOpen(Match.Phase, Match.EndReason);
+}
+
+UJGCharacterData* AJGGameStateBase::FindRosterCharacter(FName CharacterId) const
+{
+	for (UJGCharacterData* Data : CharacterRoster)
+	{
+		if (Data && Data->CharacterId == CharacterId)
+		{
+			return Data;
+		}
+	}
+
+	return nullptr;
+}
+
 #pragma endregion
 
 #pragma region 서버 전용 변경과 알림
@@ -64,6 +85,12 @@ void AJGGameStateBase::SetCourtAndBall(AJGCourt* InCourt, AJGBall* InBall)
 {
 	Court = InCourt;
 	Ball = InBall;
+	ForceNetUpdate();
+}
+
+void AJGGameStateBase::SetCharacterRoster(const TArray<TObjectPtr<UJGCharacterData>>& InRoster)
+{
+	CharacterRoster = InRoster;
 	ForceNetUpdate();
 }
 

@@ -35,6 +35,8 @@ public:
 	/** 경기 중 이탈하면 경기를 끝낸다 */
 	virtual void Logout(AController* Exiting) override;
 	virtual void StartPlay() override;
+	/** 복제용 로스터를 게임 스테이트에 넣는다 */
+	virtual void InitGameState() override;
 
 #pragma endregion
 
@@ -54,8 +56,11 @@ public:
 	/** 결과 화면에서 재경기 투표를 모은다 */
 	void HandleRematchRequest(APlayerController* Requester);
 
-	/** 플레이어를 로스터 캐릭터로 바꾼다. 로스터에 없는 ID는 무시한다. */
+	/** 플레이어를 로스터 캐릭터로 바꾼다. 로스터에 없는 ID, 선택 단계가 아닐 때, 이미 준비한 뒤의 요청은 무시한다. */
 	void HandleCharacterSelect(APlayerController* Requester, FName CharacterId);
+
+	/** 대기 단계의 준비 표시를 바꾸고, 모두 준비했으면 경기를 시작한다 */
+	void HandleReadyRequest(APlayerController* Requester, bool bReady);
 
 	/** 점수를 초기화하고 첫 서브부터 시작한다 */
 	UFUNCTION(BlueprintCallable, Category="Match")
@@ -103,7 +108,7 @@ protected:
 	/** 레벨의 코트를 찾고(없으면 스폰) 공을 스폰해 게임 스테이트에 등록한다. 여러 번 불러도 안전하다. */
 	void EnsureCourtAndBall();
 
-	/** 필요한 인원이 모였고 대기 중이면 새 경기를 시작한다 */
+	/** 대기 중이고 필요한 인원이 모두 준비했으면 새 경기를 시작한다 */
 	void TryStartMatch();
 
 #pragma endregion
@@ -151,8 +156,11 @@ protected:
 	/** 아무도 쓰지 않는 팀. A부터 채우고 둘 다 차면 None이다. */
 	EJGTeam FindFreeTeam() const;
 
-	/** 팀이 정해진 플레이어 수. Ignore는 세지 않는다(나가는 중인 플레이어용). */
-	int32 CountTeamPlayers(const AController* Ignore = nullptr) const;
+	/** 팀이 정해진 플레이어 수. Ignore는 세지 않는다(나가는 중인 플레이어용). bReadyOnly면 준비한 플레이어만 센다. */
+	int32 CountTeamPlayers(const AController* Ignore = nullptr, bool bReadyOnly = false) const;
+
+	/** 모든 플레이어의 준비 표시를 끈다. 상대가 나가 다시 고를 때 쓴다. */
+	void ClearReadyFlags();
 
 	bool HasPlayerOnTeam(EJGTeam Team) const;
 	AJGCharacter* FindCharacterOnTeam(EJGTeam Team) const;
