@@ -34,6 +34,8 @@
       "SM_DJG_CeremonyStage",
       "SM_DJG_Bleacher",
       "SM_ENC_Path",
+      "SM_ENC_PublicSidewalks",
+      "SM_ENC_PublicSidewalksJoints",
       "SM_ENC_PublicAndPlazaKerbs",
       "SM_ENC_Sandbox_Base",
       "SM_ENC_Swing_SafetyPad",
