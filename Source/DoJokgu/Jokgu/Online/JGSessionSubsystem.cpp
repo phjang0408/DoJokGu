@@ -1,6 +1,7 @@
 #include "Jokgu/Online/JGSessionSubsystem.h"
 #include "Jokgu/Data/JGGameSettings.h"
 #include "Engine/Engine.h"
+#include "Engine/NetDriver.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -70,7 +71,7 @@ void UJGSessionSubsystem::HostDefaultMatch()
 	const FString MapPath = MapPathFromSettings(true);
 	if (MapPath.IsEmpty())
 	{
-		ReportFailure(TEXT("No match map set in Project Settings > Jokgu > Maps."));
+		ReportFailure(EJGConnectionFailure::Other, TEXT("No match map set in Project Settings > Jokgu > Maps."));
 		return;
 	}
 
@@ -79,7 +80,14 @@ void UJGSessionSubsystem::HostDefaultMatch()
 
 void UJGSessionSubsystem::HostMatch(const FString& MapPath)
 {
-	LastFailureReason.Reset();
+	if (bBusy)
+	{
+		UE_LOG(LogDoJokgu, Log, TEXT("Host ignored: another host or join is in progress"));
+		return;
+	}
+
+	ClearLastFailureReason();
+	bBusy = true;
 
 	const IOnlineSessionPtr Sessions = GetSessionInterface();
 	if (!Sessions)
@@ -115,7 +123,7 @@ void UJGSessionSubsystem::HostMatch(const FString& MapPath)
 		if (!Sessions->CreateSession(0, NAME_GameSession, Settings))
 		{
 			Sessions->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionHandle);
-			ReportFailure(TEXT("Could not start creating the LAN session."));
+			ReportFailure(EJGConnectionFailure::HostFailed, TEXT("Could not start creating the LAN session."));
 		}
 	});
 }
@@ -129,7 +137,7 @@ void UJGSessionSubsystem::HandleCreateSessionComplete(FName SessionName, bool bW
 
 	if (!bWasSuccessful)
 	{
-		ReportFailure(TEXT("Could not create the LAN session."));
+		ReportFailure(EJGConnectionFailure::HostFailed, TEXT("Could not create the LAN session."));
 		return;
 	}
 
@@ -139,6 +147,7 @@ void UJGSessionSubsystem::HandleCreateSessionComplete(FName SessionName, bool bW
 void UJGSessionSubsystem::OpenListenMap(const FString& MapPath)
 {
 	UE_LOG(LogDoJokgu, Log, TEXT("Hosting listen server on %s"), *MapPath);
+	bBusy = false;
 	UGameplayStatics::OpenLevel(this, FName(*MapPath), true, TEXT("listen"));
 }
 
@@ -210,14 +219,22 @@ void UJGSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 
 void UJGSessionSubsystem::JoinFoundMatch(int32 ResultIndex)
 {
-	LastFailureReason.Reset();
+	if (bBusy)
+	{
+		UE_LOG(LogDoJokgu, Log, TEXT("Join ignored: another host or join is in progress"));
+		return;
+	}
+
+	ClearLastFailureReason();
 
 	const IOnlineSessionPtr Sessions = GetSessionInterface();
 	if (!Sessions || !SessionSearch.IsValid() || !SessionSearch->SearchResults.IsValidIndex(ResultIndex))
 	{
-		ReportFailure(TEXT("That match is no longer in the list. Refresh and try again."));
+		ReportFailure(EJGConnectionFailure::JoinFailed, TEXT("That match is no longer in the list. Refresh and try again."));
 		return;
 	}
+
+	bBusy = true;
 
 	const FOnlineSessionSearchResult Result = SessionSearch->SearchResults[ResultIndex];
 
@@ -235,7 +252,7 @@ void UJGSessionSubsystem::JoinFoundMatch(int32 ResultIndex)
 		if (!Sessions->JoinSession(0, NAME_GameSession, Result))
 		{
 			Sessions->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionHandle);
-			ReportFailure(TEXT("Could not start joining the match."));
+			ReportFailure(EJGConnectionFailure::JoinFailed, TEXT("Could not start joining the match."));
 		}
 	});
 }
@@ -251,7 +268,7 @@ void UJGSessionSubsystem::HandleJoinSessionComplete(FName SessionName, EOnJoinSe
 	FString Address;
 	if (Result != EOnJoinSessionCompleteResult::Success || !Sessions || !Sessions->GetResolvedConnectString(SessionName, Address))
 	{
-		ReportFailure(FString::Printf(TEXT("Could not join the match (%s)."), LexToString(Result)));
+		ReportFailure(EJGConnectionFailure::JoinFailed, FString::Printf(TEXT("Could not join the match (%s)."), LexToString(Result)));
 		return;
 	}
 
@@ -260,16 +277,18 @@ void UJGSessionSubsystem::HandleJoinSessionComplete(FName SessionName, EOnJoinSe
 
 void UJGSessionSubsystem::JoinByAddress(const FString& Address)
 {
-	LastFailureReason.Reset();
+	ClearLastFailureReason();
 
 	APlayerController* PlayerController = GetGameInstance() ? GetGameInstance()->GetFirstLocalPlayerController() : nullptr;
 	if (!PlayerController)
 	{
-		ReportFailure(TEXT("No local player controller to travel with."));
+		ReportFailure(EJGConnectionFailure::Other, TEXT("No local player controller to travel with."));
 		return;
 	}
 
+	// 여기부터의 실패(정원 초과, 응답 없음)는 엔진의 네트워크·이동 실패 이벤트로 들어온다
 	UE_LOG(LogDoJokgu, Log, TEXT("Joining %s"), *Address);
+	bBusy = false;
 	PlayerController->ClientTravel(Address, TRAVEL_Absolute);
 }
 
@@ -282,7 +301,7 @@ void UJGSessionSubsystem::LeaveToLobby()
 	const FString MapPath = MapPathFromSettings(false);
 	if (MapPath.IsEmpty())
 	{
-		ReportFailure(TEXT("No lobby map set in Project Settings > Jokgu > Maps."));
+		ReportFailure(EJGConnectionFailure::Other, TEXT("No lobby map set in Project Settings > Jokgu > Maps."));
 		return;
 	}
 
@@ -303,13 +322,34 @@ void UJGSessionSubsystem::LeaveToMenu(const FString& MenuMapPath)
 
 void UJGSessionSubsystem::DestroySessionThen(TFunction<void()> Then)
 {
-	const IOnlineSessionPtr Sessions = GetSessionInterface();
-	if (!Sessions || !Sessions->GetNamedSession(NAME_GameSession))
+	// 이미 지우는 중이면 완료 뒤에 이어서 하도록 덧붙인다(나가기 중 접속 끊김 등)
+	if (bDestroying)
 	{
-		Then();
+		AfterDestroy = [First = MoveTemp(AfterDestroy), Second = MoveTemp(Then)]()
+		{
+			if (First)
+			{
+				First();
+			}
+			if (Second)
+			{
+				Second();
+			}
+		};
 		return;
 	}
 
+	const IOnlineSessionPtr Sessions = GetSessionInterface();
+	if (!Sessions || !Sessions->GetNamedSession(NAME_GameSession))
+	{
+		if (Then)
+		{
+			Then();
+		}
+		return;
+	}
+
+	bDestroying = true;
 	AfterDestroy = MoveTemp(Then);
 	DestroySessionHandle = Sessions->AddOnDestroySessionCompleteDelegate_Handle(
 		FOnDestroySessionCompleteDelegate::CreateUObject(this, &UJGSessionSubsystem::HandleDestroySessionComplete));
@@ -333,6 +373,7 @@ void UJGSessionSubsystem::HandleDestroySessionComplete(FName SessionName, bool b
 	}
 
 	// 실패해도 다음 단계(맵 이동 등)는 진행한다. 남은 세션은 다음 호스트 때 다시 지운다.
+	bDestroying = false;
 	TFunction<void()> Then = MoveTemp(AfterDestroy);
 	AfterDestroy = nullptr;
 
@@ -346,20 +387,93 @@ void UJGSessionSubsystem::HandleDestroySessionComplete(FName SessionName, bool b
 
 #pragma region 실패 알림
 
+bool UJGSessionSubsystem::IsOwnWorld(const UWorld* World, const UNetDriver* NetDriver) const
+{
+	const UWorld* FailedWorld = World ? World : (NetDriver ? NetDriver->GetWorld() : nullptr);
+	if (FailedWorld)
+	{
+		return FailedWorld->GetGameInstance() == GetGameInstance();
+	}
+
+	// 접속 중(PendingNetGame) 실패는 월드가 없으므로 NetDriver로 GameInstance를 찾는다
+	if (NetDriver && GEngine)
+	{
+		if (const FWorldContext* Context = GEngine->GetWorldContextFromPendingNetGameNetDriver(NetDriver))
+		{
+			return Context->OwningGameInstance == GetGameInstance();
+		}
+	}
+
+	// 알 수 없으면 자기 것으로 본다. 패키지 실행에는 GameInstance가 하나뿐이다.
+	return true;
+}
+
 void UJGSessionSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
 {
-	ReportFailure(FString::Printf(TEXT("Network failure (%s): %s"), ENetworkFailure::ToString(FailureType), *ErrorString));
+	if (!IsOwnWorld(World, NetDriver))
+	{
+		return;
+	}
+
+	const bool bIsServer = NetDriver && NetDriver->GetNetMode() != NM_Client;
+	EJGConnectionFailure Kind = EJGConnectionFailure::Other;
+
+	switch (FailureType)
+	{
+	case ENetworkFailure::ConnectionLost:
+	case ENetworkFailure::ConnectionTimeout:
+	case ENetworkFailure::FailureReceived:
+		// Host에서는 상대 한 명의 연결이 끊긴 것이다. 게임 모드의 Logout이 경기를 끝내고, 방은 새 상대를 기다린다.
+		if (bIsServer)
+		{
+			UE_LOG(LogDoJokgu, Log, TEXT("A client connection ended (%s): %s"), ENetworkFailure::ToString(FailureType), *ErrorString);
+			return;
+		}
+		Kind = EJGConnectionFailure::ConnectionLost;
+		break;
+
+	case ENetworkFailure::PendingConnectionFailure:
+		Kind = EJGConnectionFailure::JoinFailed;
+		break;
+
+	case ENetworkFailure::OutdatedClient:
+	case ENetworkFailure::OutdatedServer:
+		Kind = EJGConnectionFailure::VersionMismatch;
+		break;
+
+	case ENetworkFailure::NetDriverAlreadyExists:
+	case ENetworkFailure::NetDriverCreateFailure:
+	case ENetworkFailure::NetDriverListenFailure:
+		Kind = EJGConnectionFailure::HostFailed;
+		break;
+
+	default:
+		break;
+	}
+
+	ReportFailure(Kind, FString::Printf(TEXT("Network failure (%s): %s"), ENetworkFailure::ToString(FailureType), *ErrorString));
+
+	// 엔진이 기본 맵(로비)으로 돌려보내는 동안 남은 세션을 지워 둔다. 다음 방 만들기·참가가 깨끗한 상태에서 시작한다.
+	DestroySessionThen(nullptr);
 }
 
 void UJGSessionSubsystem::HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString)
 {
-	ReportFailure(FString::Printf(TEXT("Travel failure (%s): %s"), ETravelFailure::ToString(FailureType), *ErrorString));
+	if (!IsOwnWorld(World, nullptr))
+	{
+		return;
+	}
+
+	ReportFailure(EJGConnectionFailure::JoinFailed, FString::Printf(TEXT("Travel failure (%s): %s"), ETravelFailure::ToString(FailureType), *ErrorString));
+	DestroySessionThen(nullptr);
 }
 
-void UJGSessionSubsystem::ReportFailure(const FString& Reason)
+void UJGSessionSubsystem::ReportFailure(EJGConnectionFailure Kind, const FString& Reason)
 {
+	bBusy = false;
+	LastFailureKind = Kind;
 	LastFailureReason = Reason;
-	UE_LOG(LogDoJokgu, Warning, TEXT("%s"), *Reason);
+	UE_LOG(LogDoJokgu, Warning, TEXT("%s (%s)"), *Reason, *UEnum::GetValueAsString(Kind));
 	OnConnectionFailed.Broadcast(Reason);
 }
 

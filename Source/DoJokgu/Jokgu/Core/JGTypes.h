@@ -137,6 +137,15 @@ struct FJGAttackInput
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attack")
 	int32 InputId = 0;
 
+	/** 진단용: 요청한 순간 클라이언트 화면의 공(보이는 메시)과 발 사이 수평 거리. 음수면 공을 못 찾았다.
+	 *  판정에는 쓰지 않고, 서버가 거절했을 때 "화면에서는 닿았는지" 로그에 남기는 데만 쓴다. */
+	UPROPERTY()
+	float ClientBallDistance = -1.0f;
+
+	/** 진단용: 같은 순간 발 기준 공 중심 높이 */
+	UPROPERTY()
+	float ClientBallHeight = 0.0f;
+
 	bool IsValid() const { return Type != EJGAttackType::None; }
 };
 

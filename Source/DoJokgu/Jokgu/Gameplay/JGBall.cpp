@@ -319,6 +319,11 @@ FVector AJGBall::GetBallVelocity() const
 	return Movement->Velocity;
 }
 
+FVector AJGBall::GetVisualLocation() const
+{
+	return VisualMesh->GetComponentLocation();
+}
+
 #pragma endregion
 
 #pragma region 이동과 접촉 이벤트

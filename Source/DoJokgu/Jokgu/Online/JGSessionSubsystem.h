@@ -9,6 +9,23 @@
 class UNetDriver;
 class FOnlineSessionSearch;
 
+/** 접속 실패 종류. 안내 화면이 사유 문자열 대신 이것으로 문구를 고른다. */
+UENUM(BlueprintType)
+enum class EJGConnectionFailure : uint8
+{
+	None,
+	/** 연결 중 상대(Host)가 나갔거나 응답이 끊겼다 */
+	ConnectionLost,
+	/** 방에 들어가지 못했다(정원 초과, 방이 사라짐 등) */
+	JoinFailed,
+	/** 게임 버전이 달라 접속할 수 없다 */
+	VersionMismatch,
+	/** 방을 만들지 못했다 */
+	HostFailed,
+	/** 맵 설정 누락 등 그 밖의 실패 */
+	Other
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FJGConnectionFailedSignature, const FString&, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FJGMatchSearchFinishedSignature, bool, bSucceeded);
 
@@ -87,6 +104,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Jokgu|Session")
 	FJGMatchSearchFinishedSignature OnMatchSearchFinished;
 
+	/** 방 만들기·참가가 진행 중이면 true. 그동안 들어온 새 만들기·참가 요청은 무시한다(버튼 연타 방지). */
+	UFUNCTION(BlueprintPure, Category="Jokgu|Session")
+	bool IsBusy() const { return bBusy; }
+
 #pragma endregion
 
 #pragma region 실패 알림
@@ -95,9 +116,13 @@ public:
 	UFUNCTION(BlueprintPure, Category="Jokgu|Session")
 	FString GetLastFailureReason() const { return LastFailureReason; }
 
+	/** 마지막 실패 종류. 사유와 함께 비워진다. */
+	UFUNCTION(BlueprintPure, Category="Jokgu|Session")
+	EJGConnectionFailure GetLastFailureKind() const { return LastFailureKind; }
+
 	/** 사유를 읽었으면 비운다(로비가 한 번만 보여 주도록) */
 	UFUNCTION(BlueprintCallable, Category="Jokgu|Session")
-	void ClearLastFailureReason() { LastFailureReason.Reset(); }
+	void ClearLastFailureReason() { LastFailureReason.Reset(); LastFailureKind = EJGConnectionFailure::None; }
 
 	UPROPERTY(BlueprintAssignable, Category="Jokgu|Session")
 	FJGConnectionFailedSignature OnConnectionFailed;
@@ -108,8 +133,11 @@ protected:
 
 	IOnlineSessionPtr GetSessionInterface() const;
 
-	/** 지난 세션이 남아 있으면 지운 뒤 Then을 부른다 */
+	/** 지난 세션이 남아 있으면 지운 뒤 Then을 부른다. 지우는 중에 또 부르면 이어서 할 일을 순서대로 덧붙인다. */
 	void DestroySessionThen(TFunction<void()> Then);
+
+	/** 엔진 실패 이벤트는 모든 GameInstance(PIE 창마다 하나)에 오므로 이 GameInstance의 월드인지 확인한다 */
+	bool IsOwnWorld(const UWorld* World, const UNetDriver* NetDriver) const;
 
 	void HandleCreateSessionComplete(FName SessionName, bool bWasSuccessful);
 	void HandleFindSessionsComplete(bool bWasSuccessful);
@@ -121,12 +149,15 @@ protected:
 	void HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 	void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString);
 
-	/** 사유를 저장하고 로그를 남긴 뒤 OnConnectionFailed로 알린다 */
-	void ReportFailure(const FString& Reason);
+	/** 사유를 저장하고 로그를 남긴 뒤 OnConnectionFailed로 알린다. 진행 중이던 만들기·참가도 끝낸다. */
+	void ReportFailure(EJGConnectionFailure Kind, const FString& Reason);
 
 	static FString MapPathFromSettings(bool bMatchMap);
 
 	FString LastFailureReason;
+	EJGConnectionFailure LastFailureKind = EJGConnectionFailure::None;
+	bool bBusy = false;
+	bool bDestroying = false;
 	FDelegateHandle NetworkFailureHandle;
 	FDelegateHandle TravelFailureHandle;
 

@@ -132,6 +132,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Ball")
 	FVector GetBallVelocity() const;
 
+	/** 화면에 보이는 공 위치. 클라이언트에서는 서버 보정을 부드럽게 따라가는 중이라 충돌체 위치와 다를 수 있다. */
+	FVector GetVisualLocation() const;
+
 #pragma endregion
 
 protected:

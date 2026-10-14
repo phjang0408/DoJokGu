@@ -221,6 +221,13 @@ void AJGCharacter::SubmitAttack(const FJGAttackInput& Input)
 	FJGAttackInput Request = Input;
 	Request.InputId = ++NextInputId;
 
+	// 서버가 거절했을 때 비교할 수 있게 지금 화면에 보이는 공의 위치를 함께 보낸다
+	const AJGGameStateBase* JGGameState = GetJGGameState();
+	if (const AJGBall* Ball = JGGameState ? JGGameState->GetBall() : nullptr)
+	{
+		MeasureBall(Ball->GetVisualLocation(), Request.ClientBallDistance, Request.ClientBallHeight);
+	}
+
 	SetAimPreview(false, 0.0f, 0.0f);
 	ServerSubmitAttack(Request);
 }
@@ -235,8 +242,24 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 	const AJGGameModeBase* GameMode = GetWorld()->GetAuthGameMode<AJGGameModeBase>();
 	const AJGGameStateBase* JGGameState = GetJGGameState();
 
-	if (!GameMode || !JGGameState || !Input.IsValid() || SlideState != EJGSlideState::Ready)
+	if (!GameMode || !JGGameState || !Input.IsValid())
 	{
+		return;
+	}
+
+	++AttackRequestCount;
+
+	const AJGBall* CurrentBall = JGGameState->GetBall();
+	float ServerDistance = -1.0f;
+	float ServerHeight = 0.0f;
+	if (CurrentBall)
+	{
+		MeasureBall(CurrentBall->GetActorLocation(), ServerDistance, ServerHeight);
+	}
+
+	if (SlideState != EJGSlideState::Ready)
+	{
+		LogRejectedAttack(Input, EHitReject::Sliding, ServerDistance, ServerHeight);
 		return;
 	}
 
@@ -250,6 +273,7 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 	bool bIsServe = false;
 	if (!GameMode->CanCharacterAttack(this, bIsServe))
 	{
+		LogRejectedAttack(Input, EHitReject::Phase, ServerDistance, ServerHeight);
 		return;
 	}
 
@@ -263,8 +287,14 @@ void AJGCharacter::HandleAttackInputOnServer(const FJGAttackInput& Input)
 		return;
 	}
 
-	// 저장 슬롯은 하나: 새 입력이 이전 입력을 대신한다
+	// 저장 슬롯은 하나: 새 입력이 이전 입력을 대신한다. 대신된 입력은 실행되지 못한 것이므로 기록한다.
+	if (BufferedAttack.IsValid())
+	{
+		LogRejectedAttack(BufferedAttack, BufferedReject, BufferedRejectDistance, BufferedRejectHeight);
+	}
+
 	BufferedAttack = Sanitized;
+	BufferedReject = EHitReject::None;
 	BufferedAttackExpireTime = GetWorld()->GetTimeSeconds() + Balance->AttackInputBufferTime;
 
 	TryExecuteBufferedAttack();
@@ -286,6 +316,7 @@ void AJGCharacter::TickServerHitCheck()
 
 	if (GetWorld()->GetTimeSeconds() > BufferedAttackExpireTime)
 	{
+		LogRejectedAttack(BufferedAttack, BufferedReject, BufferedRejectDistance, BufferedRejectHeight);
 		ClearBufferedAttack();
 		return;
 	}
@@ -295,32 +326,48 @@ void AJGCharacter::TickServerHitCheck()
 
 bool AJGCharacter::TryExecuteBufferedAttack()
 {
-	if (GetWorld()->GetTimeSeconds() < NextAttackAllowedTime)
-	{
-		return false;
-	}
-
 	const AJGGameModeBase* GameMode = GetWorld()->GetAuthGameMode<AJGGameModeBase>();
 	const AJGGameStateBase* JGGameState = GetJGGameState();
 	AJGBall* Ball = JGGameState ? JGGameState->GetBall() : nullptr;
+
+	// 실행하지 못하면 이유와 그때의 공 위치를 남겨 두고, 입력이 만료될 때 로그에 쓴다
+	if (Ball)
+	{
+		MeasureBall(Ball->GetActorLocation(), BufferedRejectDistance, BufferedRejectHeight);
+	}
+
+	if (GetWorld()->GetTimeSeconds() < NextAttackAllowedTime)
+	{
+		BufferedReject = EHitReject::Recovery;
+		return false;
+	}
 
 	// 저장된 입력은 랠리 공격 전용이다. 그사이 서브 단계가 됐으면 실행하지 않는다.
 	bool bIsServe = false;
 	if (!GameMode || !Ball || !GameMode->CanCharacterAttack(this, bIsServe) || bIsServe)
 	{
+		BufferedReject = EHitReject::Phase;
 		return false;
 	}
 
 	if (!Ball->IsHittableBy(GetTeam()))
 	{
+		const bool bRallyLive = Ball->IsInPlay() && Ball->GetRallyState().LastHitterTeam != EJGTeam::None;
+		BufferedReject = bRallyLive ? EHitReject::NotYourTurn : EHitReject::RallyOver;
 		return false;
 	}
 
 	const UJGBalanceData* Balance = UJGBalanceData::Get();
-	const float ReachMultiplier = Balance->GetStatMultiplier(GetStat(&UJGCharacterData::ReachStat));
 
-	if (!IsBallInReach(*Ball, Balance->ReachHorizontal * ReachMultiplier, Balance->ReachMinHeight, Balance->ReachMaxHeight))
+	if (BufferedRejectDistance > GetAttackReach())
 	{
+		BufferedReject = EHitReject::TooFar;
+		return false;
+	}
+
+	if (BufferedRejectHeight < Balance->ReachMinHeight || BufferedRejectHeight > Balance->ReachMaxHeight)
+	{
+		BufferedReject = BufferedRejectHeight < Balance->ReachMinHeight ? EHitReject::TooLow : EHitReject::TooHigh;
 		return false;
 	}
 
@@ -364,11 +411,24 @@ void AJGCharacter::ExecuteHit(AJGBall& Ball, const FJGAttackInput& Input, bool b
 
 bool AJGCharacter::IsBallInReach(const AJGBall& Ball, float HorizontalReach, float MinHeight, float MaxHeight) const
 {
-	const FVector Foot = GetFootLocation();
-	const FVector BallLocation = Ball.GetActorLocation();
-	const double Height = BallLocation.Z - Foot.Z;
+	float Distance = 0.0f;
+	float Height = 0.0f;
+	MeasureBall(Ball.GetActorLocation(), Distance, Height);
 
-	return FVector::Dist2D(Foot, BallLocation) <= HorizontalReach && Height >= MinHeight && Height <= MaxHeight;
+	return Distance <= HorizontalReach && Height >= MinHeight && Height <= MaxHeight;
+}
+
+float AJGCharacter::GetAttackReach() const
+{
+	const UJGBalanceData* Balance = UJGBalanceData::Get();
+	return Balance->ReachHorizontal * Balance->GetStatMultiplier(GetStat(&UJGCharacterData::ReachStat));
+}
+
+void AJGCharacter::MeasureBall(const FVector& BallLocation, float& OutDistance, float& OutHeight) const
+{
+	const FVector Foot = GetFootLocation();
+	OutDistance = static_cast<float>(FVector::Dist2D(Foot, BallLocation));
+	OutHeight = static_cast<float>(BallLocation.Z - Foot.Z);
 }
 
 int32 AJGCharacter::GetStat(int32 UJGCharacterData::* Stat) const
@@ -380,6 +440,7 @@ void AJGCharacter::ClearBufferedAttack()
 {
 	BufferedAttack = FJGAttackInput();
 	BufferedAttackExpireTime = 0.0;
+	BufferedReject = EHitReject::None;
 }
 
 void AJGCharacter::MulticastPlayKickMotion_Implementation(EJGKickMotion Motion)
@@ -397,6 +458,51 @@ void AJGCharacter::MulticastPlayKickMotion_Implementation(EJGKickMotion Motion)
 	}
 
 	OnKickMotionPlayed(Motion);
+}
+
+#pragma endregion
+
+#pragma region 타격 거절 기록
+
+void AJGCharacter::LogRejectedAttack(const FJGAttackInput& Input, EHitReject Reason, float ServerDistance, float ServerHeight)
+{
+	++RejectedAttackCount;
+
+	const UJGBalanceData* Balance = UJGBalanceData::Get();
+	const float Reach = GetAttackReach();
+
+	// 클라이언트 화면에서는 공이 리치 안에 있었는데 서버가 거절했다면 지연 때문일 가능성이 크다
+	const bool bInReachOnScreen = Input.ClientBallDistance >= 0.0f && Input.ClientBallDistance <= Reach
+		&& Input.ClientBallHeight >= Balance->ReachMinHeight && Input.ClientBallHeight <= Balance->ReachMaxHeight;
+
+	const AJGPlayerState* JGPlayerState = GetPlayerState<AJGPlayerState>();
+	const AJGGameStateBase* JGGameState = GetJGGameState();
+	const AJGBall* Ball = JGGameState ? JGGameState->GetBall() : nullptr;
+
+	UE_LOG(LogDoJokgu, Log,
+		TEXT("HitReject %s input #%d (shot %d): %s | server ball %.0f cm away, %.0f cm high | screen ball %.0f cm, %.0f cm%s | reach %.0f, height %.0f~%.0f | ping %.0f ms | rejected %d of %d"),
+		*GetNameSafe(JGPlayerState), Input.InputId, Ball ? Ball->GetRallyState().ShotId : 0, HitRejectName(Reason),
+		ServerDistance, ServerHeight, Input.ClientBallDistance, Input.ClientBallHeight,
+		bInReachOnScreen ? TEXT(" (IN REACH ON SCREEN)") : TEXT(""),
+		Reach, Balance->ReachMinHeight, Balance->ReachMaxHeight,
+		JGPlayerState ? JGPlayerState->GetPingInMilliseconds() : 0.0f,
+		RejectedAttackCount, AttackRequestCount);
+}
+
+const TCHAR* AJGCharacter::HitRejectName(EHitReject Reason)
+{
+	switch (Reason)
+	{
+	case EHitReject::Phase: return TEXT("phase does not take attacks");
+	case EHitReject::Sliding: return TEXT("sliding or recovering");
+	case EHitReject::Recovery: return TEXT("recovering from last hit");
+	case EHitReject::RallyOver: return TEXT("rally over");
+	case EHitReject::NotYourTurn: return TEXT("not your turn to receive");
+	case EHitReject::TooFar: return TEXT("ball too far");
+	case EHitReject::TooLow: return TEXT("ball too low");
+	case EHitReject::TooHigh: return TEXT("ball too high");
+	default: return TEXT("ball never checked");
+	}
 }
 
 #pragma endregion

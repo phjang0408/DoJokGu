@@ -189,10 +189,53 @@ protected:
 	/** 발 기준 수평 거리와 공 중심 높이로 타격 범위를 검사한다 */
 	bool IsBallInReach(const AJGBall& Ball, float HorizontalReach, float MinHeight, float MaxHeight) const;
 
+	/** 일반 공격 리치(능력치 배율 포함) */
+	float GetAttackReach() const;
+
 	/** 캐릭터 데이터의 능력치를 읽는다. 데이터가 없으면 3(기본)이다. */
 	int32 GetStat(int32 UJGCharacterData::* Stat) const;
 
 	void ClearBufferedAttack();
+
+#pragma endregion
+
+#pragma region 타격 거절 기록
+
+	/** 서버가 공격 입력을 실행하지 못한 이유. 지연 환경에서 "화면에서는 닿았는데" 거절된 타격을 찾는 진단용이다. */
+	enum class EHitReject : uint8
+	{
+		None,
+		/** 공격을 받지 않는 단계(득점 후, 상대 서브 등) */
+		Phase,
+		/** 슬라이딩·회복 중 */
+		Sliding,
+		/** 직전 타격 후 대기 시간 */
+		Recovery,
+		/** 랠리가 끝났거나 공이 날아가는 중이 아니다 */
+		RallyOver,
+		/** 공을 받을 차례가 아니다(방금 내가 친 공) */
+		NotYourTurn,
+		TooFar,
+		TooLow,
+		TooHigh
+	};
+
+	/** 서버: 저장된 입력이 마지막으로 실행되지 못한 이유와 그때의 공 거리·높이 */
+	EHitReject BufferedReject = EHitReject::None;
+	float BufferedRejectDistance = -1.0f;
+	float BufferedRejectHeight = 0.0f;
+
+	/** 서버: 이 캐릭터가 받은 공격 요청 수와 그중 실행하지 못한 수 */
+	int32 AttackRequestCount = 0;
+	int32 RejectedAttackCount = 0;
+
+	/** 서버: 거절된 입력 하나를 로그에 남긴다(서버 공 위치, 클라이언트 화면의 공 위치, 핑) */
+	void LogRejectedAttack(const FJGAttackInput& Input, EHitReject Reason, float ServerDistance, float ServerHeight);
+
+	/** 공과 발 사이 수평 거리와 높이 */
+	void MeasureBall(const FVector& BallLocation, float& OutDistance, float& OutHeight) const;
+
+	static const TCHAR* HitRejectName(EHitReject Reason);
 
 #pragma endregion
 

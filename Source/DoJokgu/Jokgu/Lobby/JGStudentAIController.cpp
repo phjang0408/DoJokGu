@@ -93,10 +93,6 @@ void AJGStudentAIController::MoveToRandomPoint()
 	{
 		ScheduleNextMove(1.0f);
 	}
-	else if (Request == EPathFollowingRequestResult::AlreadyAtGoal)
-	{
-		ScheduleNextMove(1.0f);
-	}
 }
 
 void AJGStudentAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
