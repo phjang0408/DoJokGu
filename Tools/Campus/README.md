@@ -5,8 +5,8 @@
 | 파일 | 역할 |
 | --- | --- |
 | `build_campus_level.py` | 빈 맵 + 조명·코트·GameMode, GLB 장면 가져오기, 코트 선·네트 맞춤, 배경 충돌 제거, 관중 배치 |
-| `cleanup_campus_level.py` | `campus_edits.json` 적용: 삭제, 이동·회전·크기, 소품 추가, 담장 안 충돌 |
-| `build_lobby_maps.py` | 정리된 맵을 `L_Campus_Match`·`L_Campus_Lobby`로 복사하고 로비 구성(스폰, 구역, 경계 벽)을 넣는다 |
+| `cleanup_campus_level.py` | `campus_edits.json` 적용: 삭제, 이동·회전·크기, 소품 추가, 재질(지형 정점 색, 흐르는 강 `M_JG_River`), 달리는 차(`traffic`), 담장 안 충돌 |
+| `build_lobby_maps.py` | 정리된 맵을 `L_Campus_Match`·`L_Campus_Lobby`로 복사하고 로비 구성(스폰, 구역, 경계 벽, NavMesh 범위, AI 학생 6명)을 넣는다 |
 | `setup_lobby_assets.py` | 소리 클래스·믹스와 로비 블루프린트 3개를 만든다(한 번만, 다시 실행해도 안전) |
 | `rebuild_campus.py` | 빌드 → 정리 → 로비·경기 맵 복사를 차례로 실행하는 commandlet 진입점 |
 | `analyze_campus.py` | Blender에서 GLB를 불러와 안 보이는 객체와 2.5m 미만 나무 쌍을 찾는다. 편집하지 않고 보고서만 쓴다 |
@@ -39,4 +39,7 @@ GLB 내보내기 (Blender 원본을 저장한 뒤, 명령줄에서). Blender Scr
   "-EnablePlugins=PythonScriptPlugin,EditorScriptingUtilities" -unattended -nullrhi -nosound -DDC-ForceMemoryCache
 ```
 
-성공 여부는 종료 코드가 아니라 보고서들의 `success`로 확인한다. 로비 블루프린트가 없으면 먼저 `setup_lobby_assets.py`를 같은 방식으로 한 번 실행한다.
+성공 여부는 종료 코드가 아니라 보고서들의 `success`로 확인한다.
+
+- 달리는 차: `traffic.loops`의 차선 사각형(`rect_cm`, 도로 중심선에서 ±180cm)을 도는 `AJGTrafficLoop` 2개를 만들고, 그 차선에 서 있던 세단 6대를 움직이는 차로 옮긴 뒤 원래 액터는 지운다. 보고서의 `lane_gap_cm`(차와 차선의 거리)이 100을 넘거나 차들의 `yaw_offset`이 서로 다르면(역주행) 실패로 멈춘다. 오른쪽 통행: 바깥 차선은 남쪽 도로에서 +Y, 안쪽 차선은 -Y.
+- 로비 NavMesh: 맵에는 `NavBounds_School`만 저장하고 NavMesh는 실행할 때 만든다(`DefaultEngine.ini`의 `RecastNavMesh RuntimeGeneration=Dynamic`). commandlet의 `ResavePackages -BuildNavigationData`는 "navigation build is locked"로 저장하지 않았다(10/14). 로비 블루프린트가 없으면 먼저 `setup_lobby_assets.py`를 같은 방식으로 한 번 실행한다.

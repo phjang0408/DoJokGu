@@ -2,8 +2,10 @@
 
 - L_Campus_Match: same actors, GameMode override BP_JGGameMode (listen-server match).
 - L_Campus_Lobby: GameMode override BP_JGLobbyGameMode; court, crowd and match PlayerStart removed;
-  a PlayerStart on the plaza in front of the main building, a Match zone beside the court, a Settings zone
-  at the student hall, and invisible walls on the school wall line that only stop pawns.
+  a PlayerStart on the open ground between the main building terrace and the court, a Match zone beside
+  the court, a Settings zone at the student hall, invisible walls on the school wall line that only stop
+  pawns, a NavMeshBoundsVolume over the school and wandering AI students (AJGStudentCharacter).
+  The NavMesh itself is built afterwards (see README: ResavePackages -BuildNavigationData).
 Runs after cleanup_campus_level.py (see rebuild_campus.py). L_CampusEnclosed itself is not changed.
 Design note: the spec's shared Level Instance (LI_Campus) is replaced for now by rebuilding both copies
 from the same pipeline, so a background edit still reaches both maps.
@@ -26,12 +28,21 @@ LEVELS = unreal.EditorLoadingAndSavingUtils
 ACTORS = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 BALL_CHANNEL = unreal.CollisionChannel.ECC_JG_BALL
 
-# spawn search: from the main building front (x 3310) back toward the court, on open plaza floor
-SPAWN_SEARCH_X = range(3000, 700, -100)
-SPAWN_SEARCH_Y = (0, 300, -300, 600, -600)
-SPAWN_FLOORS = ("SM_ENC_ForecourtPlazas", "SM_DJG_Ground", "SM_ENC_SchoolPlot", "SM_ENC_Path", "SM_ENC_SchoolTerrace")
+# spawn search: below the terrace (x 1635-3340; its stage and bleacher rails hid the court from x 3000).
+# The north goal (x 1194-1373, y +-268) and festival booths (x 898-1200, |y| >= 560) have no collision, so
+# the camera boom (about 520 cm behind) would sit behind the goal net: stand beside the goal instead.
+SPAWN_SEARCH_X = range(850, 650, -100)
+SPAWN_SEARCH_Y = (420, -420)
+SPAWN_FLOORS = ("SM_ENC_ForecourtPlazas", "SM_DJG_Ground", "SM_ENC_SchoolPlot", "SM_ENC_Path",
+                "SM_ENC_ConnectedTerrain")
 SPAWN_YAW = 180.0                 # look back at the court
 MATCH_ZONE_XY = (0.0, -700.0)     # court side line opposite the bleachers (bleachers at y +2300)
+NAV_HEIGHT = (-200.0, 800.0)      # NavMesh bounds: ground to the terrace, stage and ramps
+RIG = "/Game/Jokgu/Characters/Rigged"
+STUDENT_LOOKS = ("05_BlondKicker", "07_Headband", "08_BackwardCap", "09_GreenGlasses", "10_RedBob", "07_Headband")
+STUDENT_EMOTES = ("Clap", "Confidence", "Victory", "Taunt")
+STUDENT_GRID_CM = 400             # candidate homes: flat walkable floor on this grid inside the wall
+STUDENT_KEEP_CLEAR = ((-900, 900, -700, 700), 800)  # court rect [x0, x1, y0, y1] and distance from the spawn
 WALL_HEIGHT = 600.0
 WALL_THICKNESS = 20.0
 RESULT = {"success": False, "warnings": []}
@@ -181,6 +192,70 @@ def place_walls(site):
     RESULT["walls"] = len(walls)
 
 
+def place_nav_bounds(site):
+    x0, x1, y0, y1 = site
+    z0, z1 = NAV_HEIGHT
+    volume = spawn(unreal.NavMeshBoundsVolume, ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), label="NavBounds_School")
+    # the default volume brush is a 200 cm cube
+    volume.set_actor_scale3d(unreal.Vector((x1 - x0) / 200.0, (y1 - y0) / 200.0, (z1 - z0) / 200.0))
+    origin, extent = volume.get_actor_bounds(False)
+    RESULT["nav_bounds"] = {"origin": [round(origin.x), round(origin.y), round(origin.z)],
+                            "extent": [round(extent.x), round(extent.y), round(extent.z)]}
+    require(extent.x > 1000.0 and extent.y > 1000.0, "NavMeshBoundsVolume has no brush (extent %s)" % extent)
+
+
+def flat_floor(world, x, y, walk):
+    """Floor height at (x, y) if it is a listed walkable floor and flat within 80 cm around, else None."""
+    z, floor = ground_z(world, x, y)
+    if not floor or not any(floor == base or floor.startswith(base + "_") for base in walk):
+        return None
+    for dx, dy in ((80, 0), (-80, 0), (0, 80), (0, -80)):
+        h, f = ground_z(world, x + dx, y + dy)
+        if not f or abs(h - z) > 10.0:
+            return None
+    return z
+
+
+def place_students(world, site, walk, spawn_xy):
+    """Spread the students over flat floor: farthest-point picks from a grid, away from the court and spawn."""
+    (cx0, cx1, cy0, cy1), spawn_clear = STUDENT_KEEP_CLEAR
+    x0, x1, y0, y1 = site
+    warnings_before = len(RESULT["warnings"])
+    candidates = []
+    for x in range(int(x0) + 300, int(x1) - 300, STUDENT_GRID_CM):
+        for y in range(int(y0) + 300, int(y1) - 300, STUDENT_GRID_CM):
+            if cx0 <= x <= cx1 and cy0 <= y <= cy1:
+                continue
+            if math.hypot(x - spawn_xy[0], y - spawn_xy[1]) < spawn_clear:
+                continue
+            z = flat_floor(world, x, y, walk)
+            if z is not None:
+                candidates.append((x, y, z))
+    # the grid probes miss roofs and blockers on purpose; their "no floor" warnings are not news
+    del RESULT["warnings"][warnings_before:]
+    require(len(candidates) >= len(STUDENT_LOOKS), "Only %d floor points for students" % len(candidates))
+
+    # deterministic spread: start nearest the spawn, then always take the point farthest from those taken
+    picks = [min(candidates, key=lambda c: math.hypot(c[0] - spawn_xy[0], c[1] - spawn_xy[1]))]
+    while len(picks) < len(STUDENT_LOOKS):
+        picks.append(max(candidates, key=lambda c: min(math.hypot(c[0] - p[0], c[1] - p[1]) for p in picks)))
+
+    emotes = [EAL.load_asset(RIG + "/Montages/AM_DJG_" + name) for name in STUDENT_EMOTES]
+    require(all(emotes), "Missing an emote montage")
+    placed = []
+    for index, ((x, y, z), look) in enumerate(zip(picks, STUDENT_LOOKS)):
+        data = EAL.load_asset(RIG + "/Data/DA_DJG_" + look)
+        require(data, "Missing DA_DJG_" + look)
+        # capsule half height 96 above the floor; face a random-looking but fixed direction
+        student = spawn(unreal.JGStudentCharacter, (x, y, z + 98.0), yaw=(index * 137.0) % 360.0,
+                        label="Student_%02d" % (index + 1))
+        student.set_folder_path("Lobby/Students")
+        student.set_editor_property("look_data", data)
+        student.set_editor_property("emote_montages", emotes)
+        placed.append({"label": "Student_%02d" % (index + 1), "look": look, "location": [x, y, round(z)]})
+    RESULT["students"] = {"candidates": len(candidates), "placed": placed}
+
+
 def build_match():
     copy_map(MATCH)
     world = open_map(MATCH)
@@ -188,7 +263,7 @@ def build_match():
     save(world, MATCH)
 
 
-def build_lobby(site):
+def build_lobby(site, walk):
     copy_map(LOBBY)
     world = open_map(LOBBY)
     set_game_mode(world, "/Game/Jokgu/Lobby/BP_JGLobbyGameMode")
@@ -198,6 +273,8 @@ def build_lobby(site):
     RESULT["spawn"] = {"location": [x, y, round(z)], "floor": floor}
     RESULT["zones"] = place_zones(world)
     place_walls(site)
+    place_nav_bounds(site)
+    place_students(world, site, walk, (x, y))
     save(world, LOBBY)
 
 
@@ -211,9 +288,9 @@ def verify(path, expected_mode):
 
 
 def main():
-    site = json.loads(EDITS.read_text(encoding="utf-8"))["collision"]["site_cm"]
+    collision = json.loads(EDITS.read_text(encoding="utf-8"))["collision"]
     build_match()
-    build_lobby(site)
+    build_lobby(collision["site_cm"], collision["walk"])
     verify(MATCH, "BP_JGGameMode_C")
     verify(LOBBY, "BP_JGLobbyGameMode_C")
     RESULT["success"] = True

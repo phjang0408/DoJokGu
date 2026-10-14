@@ -71,8 +71,80 @@
       ],
       "material": "/Game/Jokgu/Environment/Materials/M_JG_TerrainVertexColor",
       "vertex_color_roughness": 0.95
+    },
+    {
+      "bases": [
+        "SM_ENC_FrontRiverWater"
+      ],
+      "material": "/Game/Jokgu/Environment/Materials/M_JG_River",
+      "river": {
+        "normal_texture": "/Engine/Functions/Engine_MaterialFunctions02/ExampleContent/Textures/water_n",
+        "flow_direction": [
+          0.0,
+          -1.0
+        ],
+        "layers": [
+          [
+            600.0,
+            40.0
+          ],
+          [
+            230.0,
+            70.0
+          ]
+        ],
+        "deep_color": [
+          0.03,
+          0.1,
+          0.14
+        ],
+        "grazing_color": [
+          0.16,
+          0.28,
+          0.32
+        ],
+        "roughness": 0.08
+      }
     }
   ],
+  "traffic": {
+    "road_z": 5.0,
+    "speed_cm_s": 900,
+    "loops": [
+      {
+        "label": "Traffic_Outer",
+        "rect_cm": [
+          -3892,
+          6067,
+          -6892,
+          6867
+        ],
+        "corner_radius_cm": 900,
+        "south_edge_direction": "+y",
+        "cars": [
+          "SM_C360_Sedan_0_029",
+          "SM_C360_Sedan_1_028",
+          "SM_C360_Sedan_2_029",
+          "SM_C360_Sedan_0_030"
+        ]
+      },
+      {
+        "label": "Traffic_Inner",
+        "rect_cm": [
+          -3532,
+          5707,
+          -6532,
+          6507
+        ],
+        "corner_radius_cm": 540,
+        "south_edge_direction": "-y",
+        "cars": [
+          "SM_C360_Sedan_1_029",
+          "SM_C360_Sedan_2_030"
+        ]
+      }
+    ]
+  },
   "collision": {
     "site_cm": [
       -3135,

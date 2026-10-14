@@ -11,15 +11,65 @@
   },
   "transformed": 0,
   "added": 0,
-  "materials": 1,
+  "materials": 2,
+  "traffic": [
+    {
+      "label": "Traffic_Outer",
+      "length_cm": 54339,
+      "cars": [
+        {
+          "car": "SM_C360_Sedan_0_029",
+          "distance": 43574,
+          "lane_gap_cm": -16,
+          "yaw_offset": 0
+        },
+        {
+          "car": "SM_C360_Sedan_1_028",
+          "distance": 46474,
+          "lane_gap_cm": -20,
+          "yaw_offset": 0
+        },
+        {
+          "car": "SM_C360_Sedan_2_029",
+          "distance": 50674,
+          "lane_gap_cm": -20,
+          "yaw_offset": 0
+        },
+        {
+          "car": "SM_C360_Sedan_0_030",
+          "distance": 53274,
+          "lane_gap_cm": -16,
+          "yaw_offset": 0
+        }
+      ]
+    },
+    {
+      "label": "Traffic_Inner",
+      "length_cm": 53611,
+      "cars": [
+        {
+          "car": "SM_C360_Sedan_1_029",
+          "distance": 51021,
+          "lane_gap_cm": 16,
+          "yaw_offset": 0
+        },
+        {
+          "car": "SM_C360_Sedan_2_030",
+          "distance": 44220,
+          "lane_gap_cm": 16,
+          "yaw_offset": 0
+        }
+      ]
+    }
+  ],
   "collision": {
     "walk": 502,
     "block": 159,
-    "none": 1263,
+    "none": 1257,
     "meshes": 351
   },
   "after": {
-    "actors": 1924,
-    "triangles": 1319511
+    "actors": 1918,
+    "triangles": 1315407
   }
 }

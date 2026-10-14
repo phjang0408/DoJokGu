@@ -8,11 +8,11 @@
   },
   "spawn": {
     "location": [
-      3000.0,
-      0.0,
-      80
+      850.0,
+      420.0,
+      -1
     ],
-    "floor": "SM_ENC_SchoolTerrace_001"
+    "floor": "SM_DJG_Ground_002"
   },
   "zones": [
     {
@@ -39,6 +39,77 @@
     }
   ],
   "walls": 4,
+  "nav_bounds": {
+    "origin": [
+      1094,
+      0,
+      300
+    ],
+    "extent": [
+      4228,
+      6130,
+      500
+    ]
+  },
+  "students": {
+    "candidates": 168,
+    "placed": [
+      {
+        "label": "Student_01",
+        "look": "05_BlondKicker",
+        "location": [
+          1565,
+          970,
+          -1
+        ]
+      },
+      {
+        "label": "Student_02",
+        "look": "07_Headband",
+        "location": [
+          3965,
+          -5830,
+          5
+        ]
+      },
+      {
+        "label": "Student_03",
+        "look": "08_BackwardCap",
+        "location": [
+          -2035,
+          -4230,
+          30
+        ]
+      },
+      {
+        "label": "Student_04",
+        "look": "09_GreenGlasses",
+        "location": [
+          -2035,
+          4970,
+          14
+        ]
+      },
+      {
+        "label": "Student_05",
+        "look": "10_RedBob",
+        "location": [
+          3965,
+          5370,
+          -3
+        ]
+      },
+      {
+        "label": "Student_06",
+        "look": "07_Headband",
+        "location": [
+          -2835,
+          170,
+          14
+        ]
+      }
+    ]
+  },
   "verified": {
     "/Game/Jokgu/Maps/L_Campus_Match": "BP_JGGameMode_C",
     "/Game/Jokgu/Maps/L_Campus_Lobby": "BP_JGLobbyGameMode_C"

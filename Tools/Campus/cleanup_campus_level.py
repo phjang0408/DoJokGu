@@ -6,13 +6,17 @@ Actors are found by label (GLB node name with "." -> "_"). Edits:
 - transform: per label, optional location [x, y, z] cm, yaw deg, uniform scale
 - add: new StaticMeshActors {label, mesh, location, yaw, scale}
 - materials: material overrides by mesh base name; a missing vertex-color material is created
-  (the terrain's height tint is GLB vertex colour, which the imported material ignores)
+  (the terrain's height tint is GLB vertex colour, which the imported material ignores), and a missing
+  river material (world-aligned panning water normals) is created for the river surface
+- traffic: closed lane loops around the school road. The sedans standing in those lanes become the moving
+  cars of an AJGTrafficLoop (their mesh and pose relative to the lane) and the static copies are removed
 - collision: mesh base names (label == base or base_<n>) for walkable floors and blockers inside the wall. Pawns collide; the
   JGBall channel and the camera channel are ignored so the ball and match camera are unaffected. Every other
   StaticMeshActor (trees, outside buildings, blockers outside the wall) is set to NoCollision.
 Writes Tools/Campus/Reports/cleanup_report.json.
 """
 import json
+import math
 import traceback
 from pathlib import Path
 import unreal
@@ -138,11 +142,74 @@ def ensure_vertex_color_material(path, roughness):
     return material
 
 
+def ensure_river_material(path, river):
+    """Opaque water: world-aligned water normals panning along the flow at two scales, fresnel-tinted colour."""
+    if EAL.does_asset_exist(path):
+        return EAL.load_asset(path)
+    # EditorAssetLibrary.load_asset returns None for this engine texture by package path; unreal.load_asset works
+    normal_texture = unreal.load_asset(river["normal_texture"])
+    require(normal_texture, "Missing " + river["normal_texture"])
+    folder, name = path.rsplit("/", 1)
+    material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+        name, folder, unreal.Material, unreal.MaterialFactoryNew())
+    require(material, "Could not create " + path)
+    material.set_editor_property("used_with_nanite", True)
+    mel = unreal.MaterialEditingLibrary
+
+    def node(cls, x, y, **props):
+        expression = mel.create_material_expression(material, cls, x, y)
+        for key, value in props.items():
+            expression.set_editor_property(key, value)
+        return expression
+
+    # the river mesh UVs do not follow the flow, so sample in world XY (cm) instead
+    world = node(unreal.MaterialExpressionWorldPosition, -1400, 0)
+    world_xy = node(unreal.MaterialExpressionComponentMask, -1200, 0, r=True, g=True, b=False, a=False)
+    mel.connect_material_expressions(world, "", world_xy, "")
+    flow_x, flow_y = river["flow_direction"]
+    normals = []
+    for index, (tile_cm, speed) in enumerate(river["layers"]):
+        scale = node(unreal.MaterialExpressionConstant, -1200, 150 + 300 * index, r=1.0 / tile_cm)
+        uv = node(unreal.MaterialExpressionMultiply, -1000, 300 * index)
+        mel.connect_material_expressions(world_xy, "", uv, "A")
+        mel.connect_material_expressions(scale, "", uv, "B")
+        # panner speed is in UV per second; one UV = tile_cm, so the water moves `speed` cm/s along the flow
+        panner = node(unreal.MaterialExpressionPanner, -800, 300 * index,
+                      speed_x=flow_x * speed / tile_cm, speed_y=flow_y * speed / tile_cm)
+        mel.connect_material_expressions(uv, "", panner, "Coordinate")
+        sample = node(unreal.MaterialExpressionTextureSample, -550, 300 * index,
+                      texture=normal_texture, sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+        mel.connect_material_expressions(panner, "", sample, "UVs")
+        normals.append(sample)
+    blended = node(unreal.MaterialExpressionAdd, -300, 150)
+    mel.connect_material_expressions(normals[0], "RGB", blended, "A")
+    mel.connect_material_expressions(normals[1], "RGB", blended, "B")
+    mel.connect_material_property(blended, "", unreal.MaterialProperty.MP_NORMAL)
+
+    deep = node(unreal.MaterialExpressionConstant3Vector, -550, -400,
+                constant=unreal.LinearColor(*river["deep_color"], 1.0))
+    grazing = node(unreal.MaterialExpressionConstant3Vector, -550, -250,
+                   constant=unreal.LinearColor(*river["grazing_color"], 1.0))
+    fresnel = node(unreal.MaterialExpressionFresnel, -550, -100)
+    color = node(unreal.MaterialExpressionLinearInterpolate, -300, -300)
+    mel.connect_material_expressions(deep, "", color, "A")
+    mel.connect_material_expressions(grazing, "", color, "B")
+    mel.connect_material_expressions(fresnel, "", color, "Alpha")
+    mel.connect_material_property(color, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = node(unreal.MaterialExpressionConstant, -300, 450, r=river["roughness"])
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.recompile_material(material)
+    require(EAL.save_loaded_asset(material, False), "Could not save " + path)
+    return material
+
+
 def apply_materials(edits, actors):
     done = 0
     for rule in edits.get("materials", []):
         if "vertex_color_roughness" in rule:
             material = ensure_vertex_color_material(rule["material"], rule["vertex_color_roughness"])
+        elif "river" in rule:
+            material = ensure_river_material(rule["material"], rule["river"])
         else:
             material = EAL.load_asset(rule["material"])
         require(material, "Missing material " + rule["material"])
@@ -153,6 +220,85 @@ def apply_materials(edits, actors):
                     component.set_material(slot, material)
                 done += 1
     RESULT["materials"] = done
+
+
+def lane_points(rect, radius, south_edge_direction, z):
+    """Closed lane around rect [x min, x max, y min, y max] with rounded corners, in driving order.
+    "+y" drives the x-min (south) edge toward +y; "-y" is the opposite way round."""
+    x0, x1, y0, y1 = rect
+    # corner centres and arc angles, going x-min/y-max -> x-max/y-max -> x-max/y-min -> x-min/y-min
+    corners = [((x0 + radius, y1 - radius), 180, 90),
+               ((x1 - radius, y1 - radius), 90, 0),
+               ((x1 - radius, y0 + radius), 0, -90),
+               ((x0 + radius, y0 + radius), -90, -180)]
+    points = []
+    for (cx, cy), start, end in corners:
+        for step in range(5):
+            angle = math.radians(start + (end - start) * step / 4)
+            points.append((cx + radius * math.cos(angle), cy + radius * math.sin(angle), z))
+    # this order runs the x-min edge from y-min to y-max last, i.e. toward +y
+    if south_edge_direction == "-y":
+        points.reverse()
+    return points
+
+
+def flat_path_transform(path, distance):
+    """Spline frame at distance with yaw only, like AJGTrafficLoop::UpdateCarTransforms."""
+    frame = path.get_transform_at_distance_along_spline(distance, unreal.SplineCoordinateSpace.WORLD, False)
+    yaw = frame.rotation.rotator().yaw
+    return unreal.Transform(frame.translation, unreal.Rotator(0.0, 0.0, yaw), unreal.Vector(1.0, 1.0, 1.0))
+
+
+def apply_traffic(edits, actors):
+    rules = edits.get("traffic")
+    if not rules:
+        return
+    loops = []
+    for rule in rules["loops"]:
+        loop = actors.get(rule["label"])
+        if loop is None:
+            loop = ACTORS.spawn_actor_from_class(unreal.JGTrafficLoop, unreal.Vector(0.0, 0.0, 0.0))
+            require(loop, "Could not spawn " + rule["label"])
+            loop.set_actor_label(rule["label"])
+            loop.set_folder_path("Ambient")
+        path = loop.get_component_by_class(unreal.SplineComponent)
+        path.clear_spline_points(False)
+        for point in lane_points(rule["rect_cm"], rule["corner_radius_cm"], rule["south_edge_direction"], rules["road_z"]):
+            path.add_spline_point(unreal.Vector(*point), unreal.SplineCoordinateSpace.WORLD, False)
+        path.set_closed_loop(True, False)
+        path.update_spline()
+        cars, report = [], []
+        for name in rule["cars"]:
+            actor = actors.pop(name, None)
+            if actor is None:
+                # a re-run on an already cleaned map: the cars were moved into the loop last time
+                RESULT["warnings"].append("traffic: no actor " + name)
+                continue
+            key = path.find_input_key_closest_to_world_location(actor.get_actor_location())
+            distance = path.get_distance_along_spline_at_spline_input_key(key)
+            offset = unreal.MathLibrary.make_relative_transform(actor.get_actor_transform(), flat_path_transform(path, distance))
+            car = unreal.JGTrafficCar()
+            car.set_editor_property("mesh", actor.static_mesh_component.static_mesh)
+            car.set_editor_property("start_distance", distance)
+            car.set_editor_property("mesh_offset", offset)
+            cars.append(car)
+            lane_gap = offset.translation.y
+            report.append({"car": name, "distance": round(distance), "lane_gap_cm": round(lane_gap),
+                           "yaw_offset": round(offset.rotation.rotator().yaw)})
+            # a car more than half a lane from the path line is not in this lane: the rect is wrong
+            require(abs(lane_gap) < 100.0, "%s is %.0f cm off the %s lane" % (name, lane_gap, rule["label"]))
+            require(ACTORS.destroy_actor(actor), "Could not delete " + name)
+        if cars:  # a re-run finds no cars left and keeps the ones from the first run
+            loop.set_editor_property("cars", cars)
+        loop.set_editor_property("speed", rules["speed_cm_s"])
+        actors[rule["label"]] = loop
+        loops.append({"label": rule["label"], "length_cm": round(path.get_spline_length()), "cars": report})
+    # the sedan meshes share one forward axis, so every car needs the same yaw offset from its lane;
+    # a 180 deg split means a loop runs against the way its cars were parked
+    yaws = sorted({c["yaw_offset"] % 360 for loop in loops for c in loop["cars"]})
+    require(not yaws or max(min(abs(y - yaws[0]), 360 - abs(y - yaws[0])) for y in yaws) < 10,
+            "traffic: cars disagree on the driving direction " + str(yaws))
+    RESULT["traffic"] = loops
 
 
 def inside(actor, site):
@@ -215,6 +361,7 @@ def main():
     apply_transforms(edits, actors)
     apply_adds(edits, actors)
     apply_materials(edits, actors)
+    apply_traffic(edits, actors)
     apply_collision(edits, actors)
     RESULT["after"] = background_stats()
     require(current_world().get_path_name().startswith(LEVEL), "Editor world changed during cleanup")

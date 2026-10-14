@@ -12,8 +12,8 @@
 
 namespace
 {
-	const FLinearColor SelectedColor(1.0f, 0.75f, 0.2f);
-	const FLinearColor IdleColor(1.0f, 1.0f, 1.0f);
+	const FLinearColor QualitySelectedColor(1.0f, 0.75f, 0.2f);
+	const FLinearColor QualityIdleColor(1.0f, 1.0f, 1.0f);
 }
 
 #pragma region 초기화와 기본 레이아웃
@@ -190,7 +190,7 @@ void UJGSettingsPanelWidget::HighlightQuality(EJGGraphicsQuality Quality)
 	{
 		if (Entry.Key)
 		{
-			Entry.Key->SetBackgroundColor(Entry.Value == Quality ? SelectedColor : IdleColor);
+			Entry.Key->SetBackgroundColor(Entry.Value == Quality ? QualitySelectedColor : QualityIdleColor);
 		}
 	}
 }
