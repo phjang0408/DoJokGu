@@ -1,6 +1,6 @@
 #include "Jokgu/Lobby/JGLobbyGameMode.h"
 #include "Jokgu/Core/JGSettingsSubsystem.h"
-#include "Jokgu/Data/JGCharacterData.h"
+#include "Jokgu/Data/JGCharacterRoster.h"
 #include "Jokgu/Lobby/JGLobbyCharacter.h"
 #include "Jokgu/Lobby/JGLobbyPlayerController.h"
 
@@ -19,19 +19,6 @@ void AJGLobbyGameMode::RestartPlayer(AController* NewPlayer)
 
 	if (Character)
 	{
-		Character->ApplyLook(FindLookData(Settings ? Settings->GetLastCharacterId() : NAME_None));
+		Character->ApplyLook(UJGCharacterRoster::Get()->FindOrDefault(Settings ? Settings->GetLastCharacterId() : NAME_None));
 	}
-}
-
-const UJGCharacterData* AJGLobbyGameMode::FindLookData(FName CharacterId) const
-{
-	for (const UJGCharacterData* Data : CharacterRoster)
-	{
-		if (Data && Data->CharacterId == CharacterId)
-		{
-			return Data;
-		}
-	}
-
-	return DefaultCharacterData;
 }

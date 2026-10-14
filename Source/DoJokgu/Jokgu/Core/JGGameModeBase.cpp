@@ -4,6 +4,7 @@
 #include "Jokgu/Core/JGPlayerState.h"
 #include "Jokgu/Data/JGBalanceData.h"
 #include "Jokgu/Data/JGCharacterData.h"
+#include "Jokgu/Data/JGCharacterRoster.h"
 #include "Jokgu/Gameplay/JGBall.h"
 #include "Jokgu/Gameplay/JGCourt.h"
 #include "Jokgu/Player/JGCharacter.h"
@@ -87,7 +88,7 @@ void AJGGameModeBase::RestartPlayer(AController* NewPlayer)
 
 	if (AJGCharacter* Character = Cast<AJGCharacter>(NewPlayer->GetPawn()))
 	{
-		Character->SetCharacterData(FindCharacterData(PlayerState->GetCharacterId()));
+		Character->SetCharacterData(UJGCharacterRoster::Get()->FindOrDefault(PlayerState->GetCharacterId()));
 	}
 }
 
@@ -122,16 +123,6 @@ void AJGGameModeBase::Logout(AController* Exiting)
 	if (CountTeamPlayers(Exiting) < GetRequiredPlayers())
 	{
 		EndMatch(EJGMatchEndReason::PlayerLeft, EJGTeam::None);
-	}
-}
-
-void AJGGameModeBase::InitGameState()
-{
-	Super::InitGameState();
-
-	if (AJGGameStateBase* JGGameState = GetJGGameState())
-	{
-		JGGameState->SetCharacterRoster(CharacterRoster);
 	}
 }
 
@@ -601,12 +592,9 @@ void AJGGameModeBase::HandleRematchRequest(APlayerController* Requester)
 void AJGGameModeBase::HandleCharacterSelect(APlayerController* Requester, FName CharacterId)
 {
 	AJGPlayerState* PlayerState = Requester ? Requester->GetPlayerState<AJGPlayerState>() : nullptr;
-	const bool bInRoster = CharacterRoster.ContainsByPredicate([CharacterId](const UJGCharacterData* Data)
-	{
-		return Data && Data->CharacterId == CharacterId;
-	});
+	UJGCharacterData* Data = UJGCharacterRoster::Get()->Find(CharacterId);
 
-	if (!PlayerState || !bInRoster)
+	if (!PlayerState || !Data)
 	{
 		UE_LOG(LogDoJokgu, Warning, TEXT("Character select ignored: %s is not in the roster"), *CharacterId.ToString());
 		return;
@@ -626,7 +614,7 @@ void AJGGameModeBase::HandleCharacterSelect(APlayerController* Requester, FName 
 	// 이미 스폰된 캐릭터에도 바로 적용한다
 	if (AJGCharacter* Character = Cast<AJGCharacter>(Requester->GetPawn()))
 	{
-		Character->SetCharacterData(FindCharacterData(CharacterId));
+		Character->SetCharacterData(Data);
 	}
 }
 
@@ -839,24 +827,10 @@ AJGCharacter* AJGGameModeBase::FindCharacterOnTeam(EJGTeam Team) const
 	return nullptr;
 }
 
-UJGCharacterData* AJGGameModeBase::FindCharacterData(FName CharacterId) const
-{
-	for (UJGCharacterData* Data : CharacterRoster)
-	{
-		if (Data && Data->CharacterId == CharacterId)
-		{
-			return Data;
-		}
-	}
-
-	return DefaultCharacterData;
-}
-
 UJGCharacterData* AJGGameModeBase::GetStartingCharacterData(EJGTeam Team) const
 {
-	// 로스터가 비어 있거나 해당 칸이 비었으면 기본 데이터로 시작한다
-	const int32 Index = Team == EJGTeam::B ? 1 : 0;
-	return CharacterRoster.IsValidIndex(Index) && CharacterRoster[Index] ? CharacterRoster[Index].Get() : DefaultCharacterData.Get();
+	// 로스터가 비어 있거나 해당 칸이 비었으면 기본 선수로 시작한다
+	return UJGCharacterRoster::Get()->GetAtOrDefault(Team == EJGTeam::B ? 1 : 0);
 }
 
 int32 AJGGameModeBase::GetRequiredPlayers() const

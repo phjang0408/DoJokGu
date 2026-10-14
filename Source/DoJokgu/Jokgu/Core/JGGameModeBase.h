@@ -35,8 +35,6 @@ public:
 	/** 경기 중 이탈하면 경기를 끝낸다 */
 	virtual void Logout(AController* Exiting) override;
 	virtual void StartPlay() override;
-	/** 복제용 로스터를 게임 스테이트에 넣는다 */
-	virtual void InitGameState() override;
 
 #pragma endregion
 
@@ -87,13 +85,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Match")
 	bool bAllowSoloMatch = false;
 
-	/** 로스터에서 캐릭터를 찾지 못했을 때 쓰는 데이터 */
-	UPROPERTY(EditDefaultsOnly, Category="Characters")
-	TObjectPtr<UJGCharacterData> DefaultCharacterData;
-
-	/** 선택 가능한 캐릭터. 선택 화면이 생기기 전까지 A팀은 0번, B팀은 1번으로 시작한다. */
-	UPROPERTY(EditDefaultsOnly, Category="Characters")
-	TArray<TObjectPtr<UJGCharacterData>> CharacterRoster;
+	// 선수 목록은 UJGCharacterRoster(프로젝트 설정)에 있다. A팀은 0번, B팀은 1번 선수로 시작한다.
 
 #pragma endregion
 
@@ -165,9 +157,7 @@ protected:
 	bool HasPlayerOnTeam(EJGTeam Team) const;
 	AJGCharacter* FindCharacterOnTeam(EJGTeam Team) const;
 
-	/** 로스터에서 ID로 찾는다. 없으면 DefaultCharacterData를 반환한다. */
-	UJGCharacterData* FindCharacterData(FName CharacterId) const;
-
+	/** 팀의 시작 선수(로스터의 0번 또는 1번) */
 	UJGCharacterData* GetStartingCharacterData(EJGTeam Team) const;
 
 	/** 경기 시작에 필요한 인원. bAllowSoloMatch면 1명이다. */

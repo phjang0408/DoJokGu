@@ -3,7 +3,7 @@
 - Audio: SC_Master with children SC_Effects and SC_Music, and SMix_Volume (the settings panel overrides
   the three classes through this mix). Project Settings > Jokgu > Audio points at them (DefaultGame.ini).
 - Lobby blueprints: BP_JGLobbyCharacter (rig mesh, IA_Move), BP_JGLobbyPlayerController (IMC_Match),
-  BP_JGLobbyGameMode (both above, the BP_JGGameMode roster).
+  BP_JGLobbyGameMode (both above). The player look comes from the shared roster asset (UJGCharacterRoster).
 Writes Tools/Campus/Reports/lobby_assets_report.json.
 """
 import json
@@ -15,7 +15,6 @@ EAL = unreal.EditorAssetLibrary
 TOOLS = unreal.AssetToolsHelpers.get_asset_tools()
 REPORT = Path(unreal.Paths.project_dir()).resolve() / "Tools/Campus/Reports/lobby_assets_report.json"
 AUDIO = "/Game/Jokgu/Audio"
-CORE = "/Game/Jokgu/Core"
 LOBBY = "/Game/Jokgu/Lobby"
 RESULT = {"success": False, "created": [], "updated": []}
 
@@ -75,8 +74,6 @@ def blueprint(name, parent_class):
 
 
 def setup_lobby():
-    match_mode = unreal.get_default_object(load(CORE + "/BP_JGGameMode").generated_class())
-
     character_bp, character = blueprint("BP_JGLobbyCharacter", unreal.JGLobbyCharacter)
     mesh = character.get_editor_property("mesh")
     mesh.set_editor_property("skeletal_mesh_asset", load("/Game/Jokgu/Characters/Rigged/Meshes/SK_DJG_01_Captain"))
@@ -89,13 +86,10 @@ def setup_lobby():
     mode_bp, mode = blueprint("BP_JGLobbyGameMode", unreal.JGLobbyGameMode)
     mode.set_editor_property("default_pawn_class", character_bp.generated_class())
     mode.set_editor_property("player_controller_class", controller_bp.generated_class())
-    mode.set_editor_property("character_roster", match_mode.get_editor_property("character_roster"))
-    mode.set_editor_property("default_character_data", match_mode.get_editor_property("default_character_data"))
 
     for bp in (character_bp, controller_bp, mode_bp):
         unreal.BlueprintEditorLibrary.compile_blueprint(bp)
         save(bp)
-    RESULT["lobby_roster"] = len(mode.get_editor_property("character_roster"))
 
 
 def main():

@@ -5,13 +5,14 @@
 #include "JGGameSettings.generated.h"
 
 class UJGBalanceData;
+class UJGCharacterRoster;
 class USoundClass;
 class USoundMix;
 class UWorld;
 
 /**
  *  Project Settings > Game > Jokgu
- *  모든 시스템이 같은 수치를 읽도록 코드가 사용할 밸런스 에셋, 볼륨 조절용 사운드 에셋, 로비·경기 맵을 지정한다.
+ *  모든 시스템이 같은 수치를 읽도록 코드가 사용할 밸런스 에셋, 선수 목록, 볼륨 조절용 사운드 에셋, 로비·경기 맵을 지정한다.
  */
 UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="Jokgu"))
 class UJGGameSettings : public UDeveloperSettings
@@ -23,6 +24,10 @@ public:
 	/** 모든 시스템이 쓰는 밸런스 에셋. 비우면 UJGBalanceData 클래스 기본값을 쓴다. */
 	UPROPERTY(Config, EditAnywhere, Category="Balance")
 	TSoftObjectPtr<UJGBalanceData> BalanceData;
+
+	/** 선택할 수 있는 선수 목록. 로비와 경기가 함께 쓴다. */
+	UPROPERTY(Config, EditAnywhere, Category="Characters")
+	TSoftObjectPtr<UJGCharacterRoster> CharacterRoster;
 
 	/** 볼륨 설정을 걸 사운드 믹스. 비우면 볼륨 설정은 저장만 하고 소리에 적용하지 않는다. */
 	UPROPERTY(Config, EditAnywhere, Category="Audio")
