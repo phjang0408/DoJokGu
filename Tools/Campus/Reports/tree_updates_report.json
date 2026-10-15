@@ -1,0 +1,175 @@
+{
+  "success": true,
+  "reimported": {
+    "SM_DJG_Tree_A_ExportMesh_001": {
+      "triangles_before": 39860,
+      "triangles_after": 40784,
+      "slots": 5,
+      "materials": [
+        "M_DJG_Bark",
+        "M_DJG_Leaf",
+        "M_DJG_LeafSun",
+        "M_DJG_LeafLight",
+        "M_DJG_LeafDark"
+      ]
+    },
+    "SM_DJG_Tree_A_ExportMesh_002": {
+      "triangles_before": 39860,
+      "triangles_after": 40784,
+      "slots": 5,
+      "materials": [
+        "M_DJG_Bark_001",
+        "M_DJG_Leaf_001",
+        "M_DJG_LeafSun_001",
+        "M_DJG_LeafLight_001",
+        "M_DJG_LeafDark_001"
+      ]
+    },
+    "SM_DJG_Tree_B_ExportMesh_001": {
+      "triangles_before": 39860,
+      "triangles_after": 40696,
+      "slots": 5,
+      "materials": [
+        "M_DJG_Bark",
+        "M_DJG_Leaf",
+        "M_DJG_LeafLight",
+        "M_DJG_LeafSun",
+        "M_DJG_LeafDark"
+      ]
+    },
+    "SM_DJG_Tree_C_ExportMesh_001": {
+      "triangles_before": 39860,
+      "triangles_after": 40872,
+      "slots": 5,
+      "materials": [
+        "M_DJG_Bark",
+        "M_DJG_Leaf",
+        "M_DJG_LeafLight",
+        "M_DJG_LeafSun",
+        "M_DJG_LeafDark"
+      ]
+    }
+  },
+  "trunks": {
+    "SM_DJG_Tree_A_ExportMesh_001": {
+      "radius_cm": 27.0,
+      "length_cm": 166.60000610351562,
+      "center_cm": [
+        -8.8,
+        9.9,
+        110.3
+      ]
+    },
+    "SM_DJG_Tree_A_ExportMesh_002": {
+      "radius_cm": 27.0,
+      "length_cm": 166.60000610351562,
+      "center_cm": [
+        -8.8,
+        9.9,
+        110.3
+      ]
+    },
+    "SM_DJG_Tree_B_ExportMesh_001": {
+      "radius_cm": 27.0,
+      "length_cm": 166.5,
+      "center_cm": [
+        -8.7,
+        -1.9,
+        110.3
+      ]
+    },
+    "SM_DJG_Tree_C_ExportMesh_001": {
+      "radius_cm": 27.0,
+      "length_cm": 166.5,
+      "center_cm": [
+        -7.3,
+        6.4,
+        110.3
+      ]
+    },
+    "SM_C360_CherryTree_ExportMesh": {
+      "radius_cm": 18.0,
+      "length_cm": 184.0,
+      "center_cm": [
+        -9.3,
+        5.2,
+        110.0
+      ]
+    },
+    "SM_C360_CherryTree_ExportMesh_001": {
+      "radius_cm": 18.0,
+      "length_cm": 184.0,
+      "center_cm": [
+        -9.3,
+        5.2,
+        110.0
+      ]
+    },
+    "SM_C360_CherryTree_ExportMesh_002": {
+      "radius_cm": 18.0,
+      "length_cm": 184.0,
+      "center_cm": [
+        -9.3,
+        5.2,
+        110.0
+      ]
+    },
+    "SM_C360_CherryTree_ExportMesh_003": {
+      "radius_cm": 18.0,
+      "length_cm": 184.0,
+      "center_cm": [
+        -9.3,
+        5.2,
+        110.0
+      ]
+    },
+    "SM_C360_CherryTree_ExportMesh_004": {
+      "radius_cm": 18.0,
+      "length_cm": 184.0,
+      "center_cm": [
+        -9.3,
+        5.2,
+        110.0
+      ]
+    },
+    "SM_ENC_Tree0_ExportMesh": {
+      "radius_cm": 20.0,
+      "length_cm": 186.0,
+      "center_cm": [
+        -1.0,
+        -2.0,
+        113.0
+      ]
+    },
+    "SM_ENC_Tree1_ExportMesh": {
+      "radius_cm": 20.0,
+      "length_cm": 186.0,
+      "center_cm": [
+        4.0,
+        1.4,
+        113.0
+      ]
+    },
+    "SM_ENC_Tree2_ExportMesh": {
+      "radius_cm": 20.0,
+      "length_cm": 186.0,
+      "center_cm": [
+        7.3,
+        2.7,
+        113.0
+      ]
+    }
+  },
+  "maps": {
+    "/Game/Jokgu/Maps/L_Campus_Lobby": {
+      "trunk_inside": 87,
+      "trunk_outside": 64,
+      "backup": "Content\\Jokgu\\Maps\\L_Campus_Lobby_before_tree_collision.umap.bak"
+    },
+    "/Game/Jokgu/Maps/L_Campus_Match": {
+      "trunk_inside": 28,
+      "trunk_outside": 68,
+      "backup": "Content\\Jokgu\\Maps\\L_Campus_Match_before_tree_collision.umap.bak"
+    }
+  }
+}

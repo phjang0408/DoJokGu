@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "imc_lobby": [
+    "IA_Jump:Gamepad_FaceButton_Bottom",
+    "IA_Jump:J",
+    "IA_Jump:SpaceBar",
+    "IA_Move:A",
+    "IA_Move:D",
+    "IA_Move:Down",
+    "IA_Move:Gamepad_Left2D",
+    "IA_Move:Left",
+    "IA_Move:Right",
+    "IA_Move:S",
+    "IA_Move:Up",
+    "IA_Move:W"
+  ],
+  "controller_contexts": [
+    "IMC_Lobby"
+  ],
+  "character_jump_action": "IA_Jump"
+}

@@ -51,9 +51,12 @@ void AJGTrafficLoop::Tick(float DeltaSeconds)
 
 void AJGTrafficLoop::RebuildCarComponents()
 {
-	for (UStaticMeshComponent* Component : CarComponents)
+	// CarComponents만 지우면 에디터에서 경로를 고칠 때마다 남은 차가 쌓인다(배열이 비워진 채로 다시 구성되는 경우).
+	// 차 컴포넌트는 모두 Transient이므로 액터에 붙은 Transient 메시 컴포넌트를 전부 지운다.
+	TInlineComponentArray<UStaticMeshComponent*> MeshComponents(this);
+	for (UStaticMeshComponent* Component : MeshComponents)
 	{
-		if (Component)
+		if (Component && Component->HasAnyFlags(RF_Transient))
 		{
 			Component->DestroyComponent();
 		}

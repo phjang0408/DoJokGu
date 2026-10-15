@@ -11,8 +11,9 @@ Actors are found by label (GLB node name with "." -> "_"). Edits:
 - traffic: closed lane loops around the school road. The sedans standing in those lanes become the moving
   cars of an AJGTrafficLoop (their mesh and pose relative to the lane) and the static copies are removed
 - collision: mesh base names (label == base or base_<n>) for walkable floors and blockers inside the wall. Pawns collide; the
-  JGBall channel and the camera channel are ignored so the ball and match camera are unaffected. Every other
-  StaticMeshActor (trees, outside buildings, blockers outside the wall) is set to NoCollision.
+  JGBall channel and the camera channel are ignored so the ball and match camera are unaffected. "trunk" tree meshes
+  inside the wall block with the trunk capsule that apply_tree_updates.py puts on the mesh (leaves never block).
+  Every other StaticMeshActor (outside buildings, trees and blockers outside the wall) is set to NoCollision.
 Writes Tools/Campus/Reports/cleanup_report.json.
 """
 import json
@@ -306,10 +307,10 @@ def inside(actor, site):
     return site[0] <= location.x <= site[1] and site[2] <= location.y <= site[3]
 
 
-def make_collidable(actor, walkable, meshes):
+def make_collidable(actor, walkable, meshes, complex_collision=True):
     component = actor.static_mesh_component
     mesh = component.static_mesh
-    if mesh and mesh.get_path_name() not in meshes:
+    if complex_collision and mesh and mesh.get_path_name() not in meshes:
         # imported meshes carry no simple shapes: collide against the render triangles
         body = mesh.get_editor_property("body_setup")
         require(body, "No body setup on " + mesh.get_path_name())
@@ -320,6 +321,12 @@ def make_collidable(actor, walkable, meshes):
     component.set_collision_response_to_channel(unreal.CollisionChannel.ECC_CAMERA, unreal.CollisionResponseType.ECR_IGNORE)
     component.set_editor_property("can_character_step_up_on",
                                   unreal.CanBeCharacterBase.ECB_YES if walkable else unreal.CanBeCharacterBase.ECB_NO)
+
+
+def is_tree(actor, bases):
+    # by mesh, not label: copies placed by hand in the lobby keep labels like SM_ENC_Tree3 on an SM_ENC_Tree0 mesh
+    mesh = actor.static_mesh_component.static_mesh
+    return bool(mesh) and any(mesh.get_name().startswith(base + "_ExportMesh") for base in bases)
 
 
 def make_uncollidable(actor):
@@ -334,14 +341,17 @@ def apply_collision(edits, actors):
     rules = edits.get("collision", {})
     site = rules.get("site_cm")
     require(site and len(site) == 4, "collision.site_cm must be [x min, x max, y min, y max]")
-    meshes, counts = {}, {"walk": 0, "block": 0, "none": 0}
+    meshes, counts = {}, {"walk": 0, "block": 0, "trunk": 0, "none": 0}
     for name, actor in actors.items():
         if not isinstance(actor, unreal.StaticMeshActor):
             continue
         kind = next((k for k in ("walk", "block") if matches(name, rules.get(k, []))), None)
+        if kind is None and is_tree(actor, rules.get("trunk", [])):
+            kind = "trunk"
         # floors may extend past the wall (terrain, plazas); blockers only matter inside it
-        if kind == "walk" or (kind == "block" and inside(actor, site)):
-            make_collidable(actor, kind == "walk", meshes)
+        if kind == "walk" or (kind in ("block", "trunk") and inside(actor, site)):
+            # trunks keep the mesh's simple capsule instead of colliding with every leaf
+            make_collidable(actor, kind == "walk", meshes, complex_collision=kind != "trunk")
             counts[kind] += 1
         else:
             make_uncollidable(actor)

@@ -26,7 +26,8 @@ AJGLobbyCharacter::AJGLobbyCharacter()
 	Movement->MaxWalkSpeed = 500.0f;
 	Movement->MinAnalogWalkSpeed = 40.0f;
 	Movement->BrakingDecelerationWalking = 2000.0f;
-	Movement->GetNavAgentPropertiesRef().bCanJump = false;
+	// NavAgentProps.bCanJump는 IsJumpAllowed()도 읽는다. 끄면 Jump()가 무시된다.
+	Movement->GetNavAgentPropertiesRef().bCanJump = true;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -86,10 +87,31 @@ void AJGLobbyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-	if (EnhancedInputComponent && MoveAction)
+	if (!EnhancedInputComponent)
+	{
+		return;
+	}
+
+	if (MoveAction)
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AJGLobbyCharacter::Move);
 	}
+
+	if (JumpAction)
+	{
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AJGLobbyCharacter::DoJumpStart);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AJGLobbyCharacter::DoJumpEnd);
+	}
+}
+
+void AJGLobbyCharacter::DoJumpStart()
+{
+	Jump();
+}
+
+void AJGLobbyCharacter::DoJumpEnd()
+{
+	StopJumping();
 }
 
 void AJGLobbyCharacter::Move(const FInputActionValue& Value)
