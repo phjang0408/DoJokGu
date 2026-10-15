@@ -1,6 +1,7 @@
 #include "Jokgu/Online/JGSessionSubsystem.h"
 #include "Jokgu/Data/JGGameSettings.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -11,8 +12,12 @@
 
 namespace
 {
-	/** 상대 한 명만 받는다. 정원 검사는 게임 모드의 PreLogin도 한 번 더 한다. */
-	constexpr int32 OpponentSlots = 1;
+	/**
+	 *  Host와 상대 한 명. Listen Server에서는 Host 자신도 세션에 등록되어 빈자리를 하나 쓰므로
+	 *  상대 수(1)만 넣으면 방을 열자마자 빈자리가 0이 되어 LAN 검색에 응답하지 않는다.
+	 *  정원 검사는 게임 모드의 PreLogin도 한 번 더 한다.
+	 */
+	constexpr int32 MatchPlayers = 2;
 	constexpr int32 MaxSearchResults = 20;
 }
 
@@ -113,7 +118,7 @@ void UJGSessionSubsystem::HostMatch(const FString& MapPath)
 		Settings.bShouldAdvertise = true;
 		Settings.bUsesPresence = false;
 		Settings.bAllowJoinInProgress = true;
-		Settings.NumPublicConnections = OpponentSlots;
+		Settings.NumPublicConnections = MatchPlayers;
 
 		CreateSessionHandle = Sessions->AddOnCreateSessionCompleteDelegate_Handle(
 			FOnCreateSessionCompleteDelegate::CreateUObject(this, &UJGSessionSubsystem::HandleCreateSessionComplete));
@@ -215,6 +220,15 @@ void UJGSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 
 	UE_LOG(LogDoJokgu, Log, TEXT("LAN search %s: %d open match(es)"), bWasSuccessful ? TEXT("done") : TEXT("failed"), FoundMatches.Num());
 	OnMatchSearchFinished.Broadcast(bWasSuccessful);
+
+	if (bJoinFirstAfterSearch)
+	{
+		bJoinFirstAfterSearch = false;
+		if (FoundMatches.Num() > 0)
+		{
+			JoinFoundMatch(FoundMatches[0].ResultIndex);
+		}
+	}
 }
 
 void UJGSessionSubsystem::JoinFoundMatch(int32 ResultIndex)
@@ -382,6 +396,47 @@ void UJGSessionSubsystem::HandleDestroySessionComplete(FName SessionName, bool b
 		Then();
 	}
 }
+
+#pragma endregion
+
+#pragma region 개발용 콘솔 명령
+
+#if !UE_BUILD_SHIPPING
+/** UI 없이 패키지 두 개로 LAN 흐름을 시험한다. 예: -ExecCmds="jg.Session.Host" / -ExecCmds="jg.Session.FindAndJoin" */
+struct FJGSessionConsoleCommands
+{
+	static UJGSessionSubsystem* Get(UWorld* World)
+	{
+		UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		return GameInstance ? GameInstance->GetSubsystem<UJGSessionSubsystem>() : nullptr;
+	}
+
+	static void Host(UWorld* World)
+	{
+		if (UJGSessionSubsystem* Session = Get(World))
+		{
+			Session->HostDefaultMatch();
+		}
+	}
+
+	static void FindAndJoin(UWorld* World)
+	{
+		if (UJGSessionSubsystem* Session = Get(World))
+		{
+			Session->bJoinFirstAfterSearch = true;
+			Session->FindLanMatches();
+		}
+	}
+};
+
+static FAutoConsoleCommandWithWorld GJGSessionHostCommand(
+	TEXT("jg.Session.Host"), TEXT("LAN 방을 만들고 경기 맵을 Listen Server로 연다 (개발용)"),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&FJGSessionConsoleCommands::Host));
+
+static FAutoConsoleCommandWithWorld GJGSessionFindAndJoinCommand(
+	TEXT("jg.Session.FindAndJoin"), TEXT("같은 네트워크의 LAN 방을 찾아 첫 방에 참가한다 (개발용)"),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&FJGSessionConsoleCommands::FindAndJoin));
+#endif
 
 #pragma endregion
 

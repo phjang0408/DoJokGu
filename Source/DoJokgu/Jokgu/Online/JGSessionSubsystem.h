@@ -170,6 +170,11 @@ protected:
 	TArray<FJGFoundMatch> FoundMatches;
 	bool bSearching = false;
 
+	/** 개발용 jg.Session.FindAndJoin: 검색이 끝나면 첫 방에 바로 참가한다 */
+	bool bJoinFirstAfterSearch = false;
+
+	friend struct FJGSessionConsoleCommands;
+
 	/** 세션 생성이 끝나면 열 맵 */
 	FString PendingHostMap;
 

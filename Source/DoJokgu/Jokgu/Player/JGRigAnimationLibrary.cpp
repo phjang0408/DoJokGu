@@ -3,6 +3,8 @@
 
 bool UJGRigAnimationLibrary::ConfigureContactMontage(UAnimMontage* Montage, float ContactSeconds)
 {
+	// 구간 추가·삭제 함수는 에디터 빌드에만 있다. 패키지 게임에서는 쓰지 않는다.
+#if WITH_EDITOR
 	if (!Montage || !FMath::IsFinite(ContactSeconds) || ContactSeconds < 0.f || ContactSeconds >= Montage->GetPlayLength())
 	{
 		return false;
@@ -20,4 +22,7 @@ bool UJGRigAnimationLibrary::ConfigureContactMontage(UAnimMontage* Montage, floa
 	Montage->BlendOut.SetBlendTime(0.12f);
 	Montage->MarkPackageDirty();
 	return true;
+#else
+	return false;
+#endif
 }

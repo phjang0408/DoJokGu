@@ -8,6 +8,9 @@
    collide like the other blockers (cleanup_campus_level.make_collidable). L_CampusEnclosed gets the same on its next
    cleanup run (campus_edits.json collision.trunk).
 Writes Tools/Campus/Reports/tree_updates_report.json.
+
+`-script="apply_tree_updates.py --meshes-only"` (10/15 branch UV fix) does steps 1-2 for the 4 edited trees only and
+leaves the maps alone.
 """
 import json
 import re
@@ -70,7 +73,7 @@ def reimport(asset):
     sources = [a for a in imported if isinstance(a, unreal.StaticMesh)]
     require(len(sources) == 1, asset + ": the GLB import made static meshes " + str([a.get_path_name() for a in sources]))
     description = sources[0].get_static_mesh_description(0)
-    require(description.get_triangle_count() > tris_before, asset + ": imported mesh has %d triangles, old %d"
+    require(description.get_triangle_count() >= tris_before, asset + ": imported mesh has %d triangles, old %d"
             % (description.get_triangle_count(), tris_before))
 
     mesh.build_from_static_mesh_descriptions([description], False)
@@ -132,14 +135,20 @@ def apply_map(level, rules):
 
 
 def main():
+    meshes_only = "--meshes-only" in sys.argv
     trunks = json.loads((TREES / "Reports/tree_trunks.json").read_text(encoding="utf-8"))["trunks"]
-    for asset in ("SM_DJG_Tree_A_ExportMesh_001", "SM_DJG_Tree_A_ExportMesh_002",
-                  "SM_DJG_Tree_B_ExportMesh_001", "SM_DJG_Tree_C_ExportMesh_001"):
+    edited = ("SM_DJG_Tree_A_ExportMesh_001", "SM_DJG_Tree_A_ExportMesh_002",
+              "SM_DJG_Tree_B_ExportMesh_001", "SM_DJG_Tree_C_ExportMesh_001")
+    for asset in edited:
         mesh = reimport(asset)
         require(EAL.save_loaded_asset(mesh, False), "Could not save " + asset)
     EAL.delete_directory(TEMP_DIR)
     for asset, capsule in trunks.items():
-        set_trunk(asset, capsule)
+        if not meshes_only or asset in edited:
+            set_trunk(asset, capsule)
+    if meshes_only:
+        RESULT["success"] = True
+        return
     rules = json.loads((TOOLS / "campus_edits.json").read_text(encoding="utf-8"))["collision"]
     for level in MAPS:
         apply_map(level, rules)
