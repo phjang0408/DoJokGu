@@ -28,6 +28,8 @@ AJGLobbyCharacter::AJGLobbyCharacter()
 	Movement->BrakingDecelerationWalking = 2000.0f;
 	// NavAgentProps.bCanJump는 IsJumpAllowed()도 읽는다. 끄면 Jump()가 무시된다.
 	Movement->GetNavAgentPropertiesRef().bCanJump = true;
+	// 점프 중에도 방향키 입력이 땅에서와 같은 가속도로 들어간다(엔진 기본 0.05는 거의 무시됨)
+	Movement->AirControl = 1.0f;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
