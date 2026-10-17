@@ -27,6 +27,10 @@
 
 *`L_Campus_Lobby`의 개발 중 전경. 2026-10-17 Unreal MCP로 캡처한 에디터 화면이며, 일부 편집용 표시가 포함되어 있습니다.*
 
+![학교 운동장에 서 있는 플레이어와 학생 NPC, Play·Settings 바로가기가 보이는 로비 실행 화면](Docs/images/readme/lobby-play.jpg)
+
+*로비 플레이 화면. 운동장을 돌아다니며 Play·Settings 버튼으로 경기와 설정 메뉴를 열 수 있습니다. 아래 메뉴·선수 선택 화면과 함께 2026-10-17 Unreal MCP로 캡처한 에디터 플레이(PIE) 화면입니다.*
+
 <!-- MEDIA_NEXT: 실제 경기 검증 후 이곳에 랠리·슬라이딩·득점 화면 또는 플레이 영상을 추가합니다.
 이미지는 Docs/images/readme/에 저장하고 상대 경로로 연결합니다.
 캡션에는 화면의 내용, 촬영한 빌드와 날짜를 적습니다.
@@ -59,6 +63,10 @@
 
 ### 선택 가능한 선수
 
+![경기 코트 위에 선수 5명의 선택 버튼과 능력치, Ready 버튼이 표시된 대기 화면](Docs/images/readme/character-select.jpg)
+
+*경기 맵의 선수 선택·준비 화면. 캡처 시점에는 상대 참가를 기다리고 있으며, 경기 시작 전 점수는 0:0입니다.*
+
 | 김도윤 | 이민지 | 최태성 | 고윤서 | 한재민 |
 | :---: | :---: | :---: | :---: | :---: |
 | ![김도윤 캐릭터](Docs/images/readme/kim-doyun.png) | ![이민지 캐릭터](Docs/images/readme/lee-minji.png) | ![최태성 캐릭터](Docs/images/readme/choi-taesung.png) | ![고윤서 캐릭터](Docs/images/readme/go-yunseo.png) | ![한재민 캐릭터](Docs/images/readme/han-jaemin.png) |
@@ -70,6 +78,11 @@ Unreal MCP로 추출한 캐릭터 에셋 미리보기입니다. 선수 목록은
 -->
 
 ## 실행과 조작
+
+| LAN 방 만들기·검색 | 그래픽·볼륨 설정 |
+| :---: | :---: |
+| ![Create room과 방 목록, Refresh 버튼이 있는 Play 패널](Docs/images/readme/lan-rooms.jpg) | ![전체·효과음·배경음 볼륨과 그래픽 품질을 조절하는 Settings 패널](Docs/images/readme/settings-panel.jpg) |
+| 같은 LAN의 방을 찾거나 새 방을 만듭니다. 캡처 시점에는 검색된 방이 없습니다. | 볼륨 3종과 그래픽 품질을 설정합니다. 실제 소리 에셋은 아직 연결 전입니다. |
 
 ### Windows 개발 빌드
 
